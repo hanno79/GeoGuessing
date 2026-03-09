@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import type { LeaderboardEntry, Difficulty, GameMode } from '../types';
+import type { LeaderboardEntry, Difficulty, GameMode, GameCategory } from '../types';
 import { formatDistance, formatScore, formatTime } from '../utils/scoreCalculator';
 
 type SortKey = keyof Pick<LeaderboardEntry, 'totalScore' | 'avgDistanceKm' | 'timestamp' | 'name' | 'roundsCount' | 'totalTimeTakenSeconds'>;
@@ -23,6 +23,7 @@ export default function Leaderboard() {
   const [difficulty, setDifficulty] = useState<Difficulty | ''>('');
   const [rounds, setRounds] = useState('');
   const [gameMode, setGameMode] = useState<GameMode | ''>('');
+  const [gameCategory, setGameCategory] = useState<GameCategory | ''>('');
   const [sort, setSort] = useState<SortKey>('totalScore');
   const [order, setOrder] = useState<SortDir>('desc');
 
@@ -33,6 +34,7 @@ export default function Leaderboard() {
     if (difficulty) params.set('difficulty', difficulty);
     if (rounds) params.set('roundsCount', rounds);
     if (gameMode) params.set('gameMode', gameMode);
+    if (gameCategory) params.set('gameCategory', gameCategory);
     params.set('sort', sort);
     params.set('order', order);
 
@@ -46,7 +48,7 @@ export default function Leaderboard() {
     } finally {
       setLoading(false);
     }
-  }, [difficulty, rounds, gameMode, sort, order]);
+  }, [difficulty, rounds, gameMode, gameCategory, sort, order]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -106,6 +108,19 @@ export default function Leaderboard() {
         </div>
 
         <div className="lb-filter-group">
+          <label htmlFor="lb-category">Kategorie</label>
+          <select
+            id="lb-category"
+            value={gameCategory}
+            onChange={(e) => setGameCategory(e.target.value as GameCategory | '')}
+          >
+            <option value="">Alle</option>
+            <option value="SkyView">🛰 SkyView</option>
+            <option value="CityHunt">🏙 CityHunt</option>
+          </select>
+        </div>
+
+        <div className="lb-filter-group">
           <label htmlFor="lb-gamemode">Spielmodus</label>
           <select
             id="lb-gamemode"
@@ -154,6 +169,7 @@ export default function Leaderboard() {
                 >
                   Score{sortIndicator('totalScore')}
                 </th>
+                <th>Kategorie</th>
                 <th>Modus</th>
                 <th>Schwierigkeit</th>
                 <th
@@ -190,6 +206,7 @@ export default function Leaderboard() {
                   </td>
                   <td className="lb-name">{e.name}</td>
                   <td className="lb-score">{formatScore(e.totalScore)}</td>
+                  <td><span className="lb-category">{e.gameCategory === 'CityHunt' ? '🏙' : '🛰'}</span></td>
                   <td><span className={`lb-mode`}>{e.gameMode ?? 'Classic'}</span></td>
                   <td><span className={`lb-diff ${e.difficulty}`}>{e.difficulty}</span></td>
                   <td>{e.roundsCount}</td>

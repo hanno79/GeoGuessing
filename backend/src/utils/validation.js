@@ -1,6 +1,7 @@
 const VALID_DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
 const VALID_ROUNDS = [3, 5, 7];
 const VALID_GAME_MODES = ['Classic', 'Zen'];
+const VALID_GAME_CATEGORIES = ['SkyView', 'CityHunt'];
 const NAME_REGEX = /^[a-zA-Z0-9\-_]+$/;
 
 /**
@@ -64,6 +65,10 @@ function validateScorePayload(body) {
     }
   }
 
+  if (!VALID_GAME_CATEGORIES.includes(body.gameCategory)) {
+    errors.push(`gameCategory must be one of: ${VALID_GAME_CATEGORIES.join(', ')}.`);
+  }
+
   if (errors.length > 0) {
     return { valid: false, errors };
   }
@@ -83,4 +88,4 @@ function validateCoordinates(location) {
   return latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180;
 }
 
-module.exports = { validateName, validateScorePayload, validateCoordinates };
+module.exports = { validateName, validateScorePayload, validateCoordinates, VALID_GAME_CATEGORIES };

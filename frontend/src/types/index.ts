@@ -1,6 +1,7 @@
 export type Difficulty = 'Easy' | 'Medium' | 'Hard';
 export type RoundsCount = 3 | 5 | 7;
 export type GameMode = 'Classic' | 'Zen';
+export type GameCategory = 'SkyView' | 'CityHunt';
 
 export interface LatLng {
   latitude: number;
@@ -15,6 +16,8 @@ export interface RoundResult {
   score: number;
   timedOut: boolean;
   timeTakenSeconds: number | null;
+  cityName?: string;
+  countryName?: string;
 }
 
 export interface GameConfig {
@@ -22,6 +25,7 @@ export interface GameConfig {
   difficulty: Difficulty;
   roundsCount: RoundsCount;
   gameMode: GameMode;
+  gameCategory: GameCategory;
 }
 
 export interface GameState extends GameConfig {
@@ -38,6 +42,7 @@ export interface LeaderboardEntry {
   roundsCount: number;
   avgDistanceKm: number | null;
   gameMode: GameMode;
+  gameCategory: GameCategory;
   totalTimeTakenSeconds: number | null;
   timestamp: string;
 }

@@ -23,6 +23,7 @@ export default function GameSummary() {
       roundsCount: state.roundsCount,
       avgDistanceKm: avgDistance,
       gameMode: state.gameMode,
+      gameCategory: state.gameCategory,
       totalTimeTakenSeconds: isZen ? totalTimeTaken : null,
     };
 
@@ -64,7 +65,7 @@ export default function GameSummary() {
         <h1>🏁 Spielergebnis</h1>
         <div className="summary-total-score">{formatScore(totalScore)}</div>
         <div className="summary-subtitle">
-          {state.playerName} · {state.gameMode} · {state.difficulty} · {state.roundsCount} Runden
+          {state.playerName} · {state.gameCategory === 'CityHunt' ? '🏙 CityHunt' : '🛰 SkyView'} · {state.gameMode} · {state.difficulty} · {state.roundsCount} Runden
         </div>
       </div>
 
@@ -106,9 +107,11 @@ export default function GameSummary() {
             <div className="summary-round" key={r.roundNumber}>
               <div className="round-num">#{r.roundNumber}</div>
               <div className="round-location">
-                {r.targetLocation
-                  ? `${r.targetLocation.latitude.toFixed(2)}°, ${r.targetLocation.longitude.toFixed(2)}°`
-                  : '—'}
+                {r.cityName
+                  ? (r.countryName ? `${r.cityName}, ${r.countryName}` : r.cityName)
+                  : r.targetLocation
+                    ? `${r.targetLocation.latitude.toFixed(2)}°, ${r.targetLocation.longitude.toFixed(2)}°`
+                    : '—'}
               </div>
               <div className="round-dist">
                 {r.distanceKm !== null ? formatDistance(r.distanceKm) : 'Kein Tipp'}

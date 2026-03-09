@@ -9,6 +9,7 @@ import CountdownTimer from './CountdownTimer';
 import ElapsedTimer from './ElapsedTimer';
 import ImageryMap from './ImageryMap';
 import GuessMap from './GuessMap';
+import CityNameDisplay from './CityNameDisplay';
 
 type Phase = 'loading' | 'playing' | 'result' | 'error';
 
@@ -23,10 +24,13 @@ export default function GameRound() {
   const [roundScore, setRoundScore] = useState<number>(0);
   const [timeBonus, setTimeBonus] = useState<number>(0);
   const [elapsedSec, setElapsedSec] = useState<number>(0);
+  const [cityName, setCityName] = useState<string | null>(null);
+  const [countryName, setCountryName] = useState<string | null>(null);
 
   const timedOut = useRef(false);
   const roundStartTime = useRef<number>(Date.now());
   const isZen = state.gameMode === 'Zen';
+  const isCityHunt = state.gameCategory === 'CityHunt';
 
   // Load a new location when the round index changes
   useEffect(() => {
@@ -38,12 +42,19 @@ export default function GameRound() {
     setDistKm(null);
     setTimeBonus(0);
     setElapsedSec(0);
+    setCityName(null);
+    setCountryName(null);
 
-    fetch('/api/location')
+    const url = isCityHunt ? `/api/city?difficulty=${state.difficulty}` : '/api/location';
+    fetch(url)
       .then((r) => r.json())
-      .then((data: LatLng) => {
+      .then((data) => {
         if (!cancelled) {
-          setTarget(data);
+          setTarget({ latitude: data.latitude, longitude: data.longitude });
+          if (isCityHunt) {
+            setCityName(data.city);
+            setCountryName(data.country ?? null);
+          }
           setPhase('playing');
           roundStartTime.current = Date.now();
         }
@@ -53,6 +64,7 @@ export default function GameRound() {
       });
 
     return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.currentRoundIndex]);
 
   const handleGuess = useCallback(
@@ -79,6 +91,8 @@ export default function GameRound() {
         score: totalRoundScore,
         targetLocation: target,
         timeTakenSeconds: isZen ? Math.floor(elapsed) : null,
+        cityName: cityName ?? undefined,
+        countryName: countryName ?? undefined,
       });
     },
     [phase, target, dispatch, isZen, state.difficulty]
@@ -108,25 +122,31 @@ export default function GameRound() {
     <div className="game-round">
       {/* ── Maps ── */}
       <div className="game-maps">
-        {/* Left: imagery */}
+        {/* Left: imagery or city name */}
         <div className="map-pane">
-          <div className="map-label" aria-hidden="true">📷 Satellitenansicht</div>
+          <div className="map-label" aria-hidden="true">
+            {isCityHunt ? '🏙 Welche Stadt?' : '📷 Satellitenansicht'}
+          </div>
           {phase === 'loading' && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}>
-              Lade Standort …
+              {isCityHunt ? 'Lade Stadt …' : 'Lade Standort …'}
             </div>
           )}
           {phase === 'error' && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--danger)' }}>
-              ⚠️ Standort konnte nicht geladen werden.
+              {isCityHunt ? '⚠️ Stadt konnte nicht geladen werden.' : '⚠️ Standort konnte nicht geladen werden.'}
             </div>
           )}
           {target && (phase === 'playing' || phase === 'result') && (
-            <ImageryMap
-              latitude={target.latitude}
-              longitude={target.longitude}
-              difficulty={state.difficulty}
-            />
+            isCityHunt ? (
+              <CityNameDisplay city={cityName ?? ''} country={countryName} />
+            ) : (
+              <ImageryMap
+                latitude={target.latitude}
+                longitude={target.longitude}
+                difficulty={state.difficulty}
+              />
+            )
           )}
         </div>
 
@@ -214,8 +234,10 @@ export default function GameRound() {
         )}
 
         <div className="attribution">
-          Karte: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap</a> &nbsp;|&nbsp;
-          Satellit: <a href="https://www.esri.com" target="_blank" rel="noopener noreferrer">© Esri</a>
+          Karte: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap</a>
+          {!isCityHunt && (
+            <>&nbsp;|&nbsp;Satellit: <a href="https://www.esri.com" target="_blank" rel="noopener noreferrer">© Esri</a></>
+          )}
         </div>
       </footer>
     </div>

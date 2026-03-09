@@ -43,6 +43,9 @@ function initDatabase() {
     if (!cols.includes('totalTimeTakenSeconds')) {
       db.exec("ALTER TABLE leaderboard ADD COLUMN totalTimeTakenSeconds REAL");
     }
+    if (!cols.includes('gameCategory')) {
+      db.exec("ALTER TABLE leaderboard ADD COLUMN gameCategory TEXT NOT NULL DEFAULT 'SkyView'");
+    }
 
     console.log('Database initialized at', DB_PATH);
   } catch (err) {

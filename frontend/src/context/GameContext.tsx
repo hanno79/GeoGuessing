@@ -8,6 +8,7 @@ const initialState: GameState = {
   difficulty: 'Medium',
   roundsCount: 5,
   gameMode: 'Classic',
+  gameCategory: 'SkyView',
   rounds: [],
   currentRoundIndex: 0,
   phase: 'setup',
@@ -17,7 +18,7 @@ const initialState: GameState = {
 
 type Action =
   | { type: 'START_GAME'; config: GameConfig }
-  | { type: 'SUBMIT_GUESS'; guess: LatLng; distanceKm: number; score: number; targetLocation: LatLng; timeTakenSeconds: number | null }
+  | { type: 'SUBMIT_GUESS'; guess: LatLng; distanceKm: number; score: number; targetLocation: LatLng; timeTakenSeconds: number | null; cityName?: string; countryName?: string }
   | { type: 'TIMEOUT'; targetLocation: LatLng }
   | { type: 'NEXT_ROUND' }
   | { type: 'END_GAME' }
@@ -43,6 +44,8 @@ function gameReducer(state: GameState, action: Action): GameState {
         score: action.score,
         timedOut: false,
         timeTakenSeconds: action.timeTakenSeconds,
+        cityName: action.cityName,
+        countryName: action.countryName,
       };
       return { ...state, rounds: [...state.rounds, round], phase: 'result' };
     }

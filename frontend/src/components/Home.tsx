@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
-import type { Difficulty, RoundsCount, GameMode } from '../types';
+import type { Difficulty, RoundsCount, GameMode, GameCategory } from '../types';
 import { DIFFICULTY_TIMER, ZEN_TIME_BONUS_WINDOW } from '../types';
 
 const DIFFICULTY_DESC_CLASSIC: Record<Difficulty, string> = {
@@ -16,6 +16,18 @@ const DIFFICULTY_DESC_ZEN: Record<Difficulty, string> = {
   Hard:   'Straßenebene — Nur Gebäude & Infrastruktur',
 };
 
+const CITY_DIFFICULTY_DESC_CLASSIC: Record<Difficulty, string> = {
+  Easy:   '60 s · Stadtname + Land — Bekannte Metropolen',
+  Medium: '45 s · Nur Stadtname — Größere Städte weltweit',
+  Hard:   '30 s · Nur Stadtname — Auch weniger bekannte Städte',
+};
+
+const CITY_DIFFICULTY_DESC_ZEN: Record<Difficulty, string> = {
+  Easy:   'Stadtname + Land — Bekannte Metropolen',
+  Medium: 'Nur Stadtname — Größere Städte weltweit',
+  Hard:   'Nur Stadtname — Auch weniger bekannte Städte',
+};
+
 export default function Home() {
   const { dispatch } = useGame();
   const navigate = useNavigate();
@@ -25,6 +37,7 @@ export default function Home() {
   const [difficulty, setDifficulty] = useState<Difficulty>('Medium');
   const [roundsCount, setRoundsCount] = useState<RoundsCount>(5);
   const [gameMode, setGameMode] = useState<GameMode>('Classic');
+  const [gameCategory, setGameCategory] = useState<GameCategory>('SkyView');
 
   const NAME_REGEX = /^[a-zA-Z0-9\-_]+$/;
 
@@ -39,7 +52,7 @@ export default function Home() {
   function handleStart() {
     const err = validateName(playerName);
     if (err) { setNameError(err); return; }
-    dispatch({ type: 'START_GAME', config: { playerName: playerName.trim(), difficulty, roundsCount, gameMode } });
+    dispatch({ type: 'START_GAME', config: { playerName: playerName.trim(), difficulty, roundsCount, gameMode, gameCategory } });
     navigate('/game');
   }
 
@@ -47,7 +60,11 @@ export default function Home() {
     <div className="home">
       <div className="home-hero">
         <h1>Geo<span>Guessing</span></h1>
-        <p>Erkenne den Ort auf dem Satellitenbild und markiere ihn auf der Weltkarte.</p>
+        <p>
+          {gameCategory === 'SkyView'
+            ? 'Erkenne den Ort auf dem Satellitenbild und markiere ihn auf der Weltkarte.'
+            : 'Finde die Stadt auf der Weltkarte — nur anhand des Namens!'}
+        </p>
       </div>
 
       <div className="card">
@@ -66,6 +83,34 @@ export default function Home() {
             aria-describedby={nameError ? 'name-error' : undefined}
           />
           {nameError && <span id="name-error" className="form-error" role="alert">{nameError}</span>}
+        </div>
+
+        {/* Game Category */}
+        <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+          <label>Spielkategorie</label>
+          <div className="option-group" role="group" aria-label="Spielkategorie">
+            <button
+              className={`option-btn ${gameCategory === 'SkyView' ? 'selected' : ''}`}
+              onClick={() => setGameCategory('SkyView')}
+              aria-pressed={gameCategory === 'SkyView'}
+              type="button"
+            >
+              🛰 SkyView
+            </button>
+            <button
+              className={`option-btn ${gameCategory === 'CityHunt' ? 'selected' : ''}`}
+              onClick={() => setGameCategory('CityHunt')}
+              aria-pressed={gameCategory === 'CityHunt'}
+              type="button"
+            >
+              🏙 CityHunt
+            </button>
+          </div>
+          <span className="difficulty-hint">
+            {gameCategory === 'SkyView'
+              ? 'Erkenne Orte anhand von Satellitenbildern'
+              : 'Finde Städte auf der Weltkarte anhand ihres Namens'}
+          </span>
         </div>
 
         {/* Game Mode */}
@@ -113,7 +158,9 @@ export default function Home() {
             ))}
           </div>
           <span className="difficulty-hint">
-            {gameMode === 'Classic' ? DIFFICULTY_DESC_CLASSIC[difficulty] : DIFFICULTY_DESC_ZEN[difficulty]}
+            {gameCategory === 'SkyView'
+              ? (gameMode === 'Classic' ? DIFFICULTY_DESC_CLASSIC[difficulty] : DIFFICULTY_DESC_ZEN[difficulty])
+              : (gameMode === 'Classic' ? CITY_DIFFICULTY_DESC_CLASSIC[difficulty] : CITY_DIFFICULTY_DESC_ZEN[difficulty])}
           </span>
         </div>
 
