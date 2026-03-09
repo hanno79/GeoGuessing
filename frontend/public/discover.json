@@ -1,0 +1,40 @@
+{
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-03-04",
+      "title": "Initial Release",
+      "entries": [
+        "Interactive world map guessing with Leaflet",
+        "Three difficulty levels: Easy, Medium, Hard",
+        "Configurable round counts: 3, 5 or 7 rounds",
+        "Score calculation based on Haversine distance",
+        "Persistent leaderboard with SQLite",
+        "Responsive layout for desktop and mobile",
+        "Tile error fallback handling",
+        "Round result reveal with distance line"
+      ]
+    }
+  ],
+  "upcomingModes": [
+    {
+      "title": "Team Mode",
+      "description": "Compete with friends in real-time. Coming soon!",
+      "url": "#"
+    },
+    {
+      "title": "Speed Round",
+      "description": "10 locations, 15 seconds each. Are you fast enough?",
+      "url": "#"
+    },
+    {
+      "title": "Country Challenge",
+      "description": "Guess only from a selected country or continent.",
+      "url": "#"
+    }
+  ],
+  "socialSharing": {
+    "twitter": "https://twitter.com/intent/tweet?text=Ich%20habe%20gerade%20GeoGuessing%20gespielt%20und%20einen%20neuen%20Highscore%20erzielt!%20%23GeoGuessing%20%23Challenge",
+    "whatsapp": "https://api.whatsapp.com/send?text=Ich%20habe%20gerade%20GeoGuessing%20gespielt!%20Schau%20es%20dir%20an%3A%20http%3A%2F%2Flocalhost%3A5173"
+  }
+}
