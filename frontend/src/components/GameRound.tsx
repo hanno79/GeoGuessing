@@ -179,6 +179,10 @@ export default function GameRound() {
           </div>
           <div className="game-info-item">
             <span>Modus</span>
+            <span>{state.gameMode}</span>
+          </div>
+          <div className="game-info-item">
+            <span>Schwierigkeit</span>
             <span>{state.difficulty}</span>
           </div>
         </div>

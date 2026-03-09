@@ -4,10 +4,16 @@ import { useGame } from '../context/GameContext';
 import type { Difficulty, RoundsCount, GameMode } from '../types';
 import { DIFFICULTY_TIMER, ZEN_TIME_BONUS_WINDOW } from '../types';
 
-const DIFFICULTY_DESC: Record<Difficulty, string> = {
+const DIFFICULTY_DESC_CLASSIC: Record<Difficulty, string> = {
   Easy:   '60 s · Weite Ansicht — Landschaften erkennbar',
   Medium: '45 s · Stadtebene — Orientierende Details',
   Hard:   '30 s · Straßenebene — Nur Gebäude & Infrastruktur',
+};
+
+const DIFFICULTY_DESC_ZEN: Record<Difficulty, string> = {
+  Easy:   'Weite Ansicht — Landschaften erkennbar',
+  Medium: 'Stadtebene — Orientierende Details',
+  Hard:   'Straßenebene — Nur Gebäude & Infrastruktur',
 };
 
 export default function Home() {
@@ -106,7 +112,9 @@ export default function Home() {
               </button>
             ))}
           </div>
-          <span className="difficulty-hint">{DIFFICULTY_DESC[difficulty]}</span>
+          <span className="difficulty-hint">
+            {gameMode === 'Classic' ? DIFFICULTY_DESC_CLASSIC[difficulty] : DIFFICULTY_DESC_ZEN[difficulty]}
+          </span>
         </div>
 
         {/* Rounds */}
