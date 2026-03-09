@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const { validateCoordinates } = require('../utils/validation');
 
 const router = express.Router();
 
@@ -18,7 +19,17 @@ function loadLocations() {
       console.warn('locations.json is empty or invalid. Using fallback.');
       locations = [FALLBACK_LOCATION];
     } else {
-      locations = parsed;
+      const valid = parsed.filter((loc, i) => {
+        if (!validateCoordinates(loc)) {
+          console.warn(`Skipping invalid location at index ${i}:`, JSON.stringify(loc));
+          return false;
+        }
+        return true;
+      });
+      locations = valid.length > 0 ? valid : [FALLBACK_LOCATION];
+      if (valid.length < parsed.length) {
+        console.warn(`Filtered out ${parsed.length - valid.length} invalid location(s).`);
+      }
     }
   } catch (err) {
     console.error('Failed to load locations.json:', err.message, '- Using fallback.');

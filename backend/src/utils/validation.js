@@ -60,4 +60,16 @@ function validateScorePayload(body) {
   return { valid: true, name: nameResult.value };
 }
 
-module.exports = { validateName, validateScorePayload };
+/**
+ * Validates that a location object has valid coordinates.
+ * Latitude must be between -90 and 90, longitude between -180 and 180.
+ */
+function validateCoordinates(location) {
+  if (location == null || typeof location !== 'object') return false;
+  const { latitude, longitude } = location;
+  if (typeof latitude !== 'number' || typeof longitude !== 'number') return false;
+  if (!isFinite(latitude) || !isFinite(longitude)) return false;
+  return latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180;
+}
+
+module.exports = { validateName, validateScorePayload, validateCoordinates };
