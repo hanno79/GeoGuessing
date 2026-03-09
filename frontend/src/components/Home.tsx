@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
-import type { Difficulty, RoundsCount } from '../types';
-import { DIFFICULTY_TIMER } from '../types';
+import type { Difficulty, RoundsCount, GameMode } from '../types';
+import { DIFFICULTY_TIMER, ZEN_TIME_BONUS_WINDOW } from '../types';
 
 const DIFFICULTY_DESC: Record<Difficulty, string> = {
   Easy:   '60 s · Weite Ansicht — Landschaften erkennbar',
@@ -18,6 +18,7 @@ export default function Home() {
   const [nameError, setNameError]   = useState('');
   const [difficulty, setDifficulty] = useState<Difficulty>('Medium');
   const [roundsCount, setRoundsCount] = useState<RoundsCount>(5);
+  const [gameMode, setGameMode] = useState<GameMode>('Classic');
 
   const NAME_REGEX = /^[a-zA-Z0-9\-_]+$/;
 
@@ -32,7 +33,7 @@ export default function Home() {
   function handleStart() {
     const err = validateName(playerName);
     if (err) { setNameError(err); return; }
-    dispatch({ type: 'START_GAME', config: { playerName: playerName.trim(), difficulty, roundsCount } });
+    dispatch({ type: 'START_GAME', config: { playerName: playerName.trim(), difficulty, roundsCount, gameMode } });
     navigate('/game');
   }
 
@@ -59,6 +60,34 @@ export default function Home() {
             aria-describedby={nameError ? 'name-error' : undefined}
           />
           {nameError && <span id="name-error" className="form-error" role="alert">{nameError}</span>}
+        </div>
+
+        {/* Game Mode */}
+        <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+          <label>Spielmodus</label>
+          <div className="option-group" role="group" aria-label="Spielmodus">
+            <button
+              className={`option-btn ${gameMode === 'Classic' ? 'selected' : ''}`}
+              onClick={() => setGameMode('Classic')}
+              aria-pressed={gameMode === 'Classic'}
+              type="button"
+            >
+              ⏱ Classic
+            </button>
+            <button
+              className={`option-btn ${gameMode === 'Zen' ? 'selected' : ''}`}
+              onClick={() => setGameMode('Zen')}
+              aria-pressed={gameMode === 'Zen'}
+              type="button"
+            >
+              🧘 Zen
+            </button>
+          </div>
+          <span className="difficulty-hint">
+            {gameMode === 'Classic'
+              ? 'Mit Timer — Zeit läuft ab, dann 0 Punkte'
+              : `Ohne Timer — Schnelligkeit gibt bis zu 1.000 Bonuspunkte (${ZEN_TIME_BONUS_WINDOW[difficulty]}s Fenster)`}
+          </span>
         </div>
 
         {/* Difficulty */}
@@ -105,8 +134,11 @@ export default function Home() {
 
       <div className="card" style={{ textAlign: 'center', padding: '1rem' }}>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-          Zeitlimit: <strong>{DIFFICULTY_TIMER[difficulty]} s</strong> pro Runde · {roundsCount} Runden ·
-          Max. <strong>{roundsCount * 5000}</strong> Punkte
+          {gameMode === 'Classic' ? (
+            <>Zeitlimit: <strong>{DIFFICULTY_TIMER[difficulty]} s</strong> pro Runde · {roundsCount} Runden · Max. <strong>{(roundsCount * 5000).toLocaleString('de-DE')}</strong> Punkte</>
+          ) : (
+            <>Kein Zeitlimit · {roundsCount} Runden · Max. <strong>{(roundsCount * 6000).toLocaleString('de-DE')}</strong> Punkte</>
+          )}
         </p>
       </div>
     </div>

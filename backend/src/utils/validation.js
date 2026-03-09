@@ -1,5 +1,6 @@
 const VALID_DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
 const VALID_ROUNDS = [3, 5, 7];
+const VALID_GAME_MODES = ['Classic', 'Zen'];
 const NAME_REGEX = /^[a-zA-Z0-9\-_]+$/;
 
 /**
@@ -50,6 +51,16 @@ function validateScorePayload(body) {
   if (body.avgDistanceKm !== undefined && body.avgDistanceKm !== null) {
     if (typeof body.avgDistanceKm !== 'number' || body.avgDistanceKm < 0) {
       errors.push('avgDistanceKm must be a non-negative number.');
+    }
+  }
+
+  if (!VALID_GAME_MODES.includes(body.gameMode)) {
+    errors.push(`gameMode must be one of: ${VALID_GAME_MODES.join(', ')}.`);
+  }
+
+  if (body.totalTimeTakenSeconds !== undefined && body.totalTimeTakenSeconds !== null) {
+    if (typeof body.totalTimeTakenSeconds !== 'number' || body.totalTimeTakenSeconds < 0) {
+      errors.push('totalTimeTakenSeconds must be a non-negative number.');
     }
   }
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
-import { formatDistance, formatScore } from '../utils/scoreCalculator';
+import { formatDistance, formatScore, formatTime } from '../utils/scoreCalculator';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error' | 'duplicate';
 
@@ -22,6 +22,8 @@ export default function GameSummary() {
       difficulty: state.difficulty,
       roundsCount: state.roundsCount,
       avgDistanceKm: avgDistance,
+      gameMode: state.gameMode,
+      totalTimeTakenSeconds: isZen ? totalTimeTaken : null,
     };
 
     try {
@@ -52,6 +54,8 @@ export default function GameSummary() {
   }
 
   const bestRound = [...state.rounds].sort((a, b) => b.score - a.score)[0];
+  const isZen = state.gameMode === 'Zen';
+  const totalTimeTaken = state.rounds.reduce((sum, r) => sum + (r.timeTakenSeconds ?? 0), 0);
 
   return (
     <div className="summary">
@@ -60,7 +64,7 @@ export default function GameSummary() {
         <h1>🏁 Spielergebnis</h1>
         <div className="summary-total-score">{formatScore(totalScore)}</div>
         <div className="summary-subtitle">
-          {state.playerName} · {state.difficulty} · {state.roundsCount} Runden
+          {state.playerName} · {state.gameMode} · {state.difficulty} · {state.roundsCount} Runden
         </div>
       </div>
 
@@ -84,6 +88,14 @@ export default function GameSummary() {
             {bestRound ? formatScore(bestRound.score) : '0'}
           </div>
         </div>
+        {isZen && (
+          <div className="stat-card">
+            <div className="stat-label">Gesamtzeit</div>
+            <div className="stat-value" style={{ color: 'var(--accent-glow)' }}>
+              {formatTime(totalTimeTaken)}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Round breakdown */}
@@ -101,6 +113,11 @@ export default function GameSummary() {
               <div className="round-dist">
                 {r.distanceKm !== null ? formatDistance(r.distanceKm) : 'Kein Tipp'}
               </div>
+              {isZen && (
+                <div className="round-time" style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                  {r.timeTakenSeconds !== null ? formatTime(r.timeTakenSeconds) : '—'}
+                </div>
+              )}
               <div className={`round-score-val ${r.score === 0 ? 'zero' : ''}`}>
                 +{formatScore(r.score)}
               </div>

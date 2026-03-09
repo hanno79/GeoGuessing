@@ -2,9 +2,11 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
 import type { LatLng } from '../types';
+import { ZEN_TIME_BONUS_WINDOW } from '../types';
 import { haversineDistance } from '../utils/haversine';
-import { calculateScore, formatDistance, formatScore } from '../utils/scoreCalculator';
+import { calculateScore, calculateTimeBonus, formatDistance, formatScore, formatTime } from '../utils/scoreCalculator';
 import CountdownTimer from './CountdownTimer';
+import ElapsedTimer from './ElapsedTimer';
 import ImageryMap from './ImageryMap';
 import GuessMap from './GuessMap';
 
@@ -19,8 +21,12 @@ export default function GameRound() {
   const [guess, setGuess]   = useState<LatLng | null>(null);
   const [distKm, setDistKm] = useState<number | null>(null);
   const [roundScore, setRoundScore] = useState<number>(0);
+  const [timeBonus, setTimeBonus] = useState<number>(0);
+  const [elapsedSec, setElapsedSec] = useState<number>(0);
 
   const timedOut = useRef(false);
+  const roundStartTime = useRef<number>(Date.now());
+  const isZen = state.gameMode === 'Zen';
 
   // Load a new location when the round index changes
   useEffect(() => {
@@ -30,6 +36,8 @@ export default function GameRound() {
     setTarget(null);
     setGuess(null);
     setDistKm(null);
+    setTimeBonus(0);
+    setElapsedSec(0);
 
     fetch('/api/location')
       .then((r) => r.json())
@@ -37,6 +45,7 @@ export default function GameRound() {
         if (!cancelled) {
           setTarget(data);
           setPhase('playing');
+          roundStartTime.current = Date.now();
         }
       })
       .catch(() => {
@@ -51,22 +60,28 @@ export default function GameRound() {
       if (phase !== 'playing' || !target) return;
 
       const dist = haversineDistance(ll.latitude, ll.longitude, target.latitude, target.longitude);
-      const score = calculateScore(dist);
+      const distScore = calculateScore(dist);
+      const elapsed = (Date.now() - roundStartTime.current) / 1000;
+      const bonus = isZen ? calculateTimeBonus(elapsed, ZEN_TIME_BONUS_WINDOW[state.difficulty]) : 0;
+      const totalRoundScore = distScore + bonus;
 
       setGuess(ll);
       setDistKm(dist);
-      setRoundScore(score);
+      setRoundScore(totalRoundScore);
+      setTimeBonus(bonus);
+      setElapsedSec(Math.floor(elapsed));
       setPhase('result');
 
       dispatch({
         type: 'SUBMIT_GUESS',
         guess: ll,
         distanceKm: dist,
-        score,
+        score: totalRoundScore,
         targetLocation: target,
+        timeTakenSeconds: isZen ? Math.floor(elapsed) : null,
       });
     },
-    [phase, target, dispatch]
+    [phase, target, dispatch, isZen, state.difficulty]
   );
 
   const handleTimeout = useCallback(() => {
@@ -134,6 +149,11 @@ export default function GameRound() {
                   <h3>Deine Distanz</h3>
                   <div className="result-distance">{formatDistance(distKm ?? 0)}</div>
                   <div className="result-score">+{formatScore(roundScore)} Punkte</div>
+                  {isZen && (
+                    <div className="result-time-bonus" style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                      {formatTime(elapsedSec)} · +{formatScore(timeBonus)} Zeitbonus
+                    </div>
+                  )}
                 </>
               ) : (
                 <>
@@ -163,11 +183,18 @@ export default function GameRound() {
           </div>
         </div>
 
-        {phase === 'playing' && target && (
+        {phase === 'playing' && target && !isZen && (
           <CountdownTimer
             difficulty={state.difficulty}
             running={phase === 'playing'}
             onTimeout={handleTimeout}
+          />
+        )}
+
+        {phase === 'playing' && target && isZen && (
+          <ElapsedTimer
+            running={phase === 'playing'}
+            startTime={roundStartTime.current}
           />
         )}
 

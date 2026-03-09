@@ -4,14 +4,14 @@ const { validateScorePayload } = require('../utils/validation');
 
 const router = express.Router();
 
-const ALLOWED_SORT_COLUMNS = ['totalScore', 'avgDistanceKm', 'timestamp', 'name', 'difficulty', 'roundsCount'];
+const ALLOWED_SORT_COLUMNS = ['totalScore', 'avgDistanceKm', 'timestamp', 'name', 'difficulty', 'roundsCount', 'gameMode', 'totalTimeTakenSeconds'];
 const ALLOWED_ORDERS = ['asc', 'desc'];
 
 // GET /api/leaderboard
 router.get('/leaderboard', (req, res) => {
   try {
     const db = getDb();
-    const { difficulty, roundsCount, sort = 'totalScore', order = 'desc', limit = 50 } = req.query;
+    const { difficulty, roundsCount, gameMode, sort = 'totalScore', order = 'desc', limit = 50 } = req.query;
 
     const sortCol = ALLOWED_SORT_COLUMNS.includes(sort) ? sort : 'totalScore';
     const sortOrder = ALLOWED_ORDERS.includes(order?.toLowerCase()) ? order.toUpperCase() : 'DESC';
@@ -27,6 +27,10 @@ router.get('/leaderboard', (req, res) => {
     if (roundsCount) {
       query += ' AND roundsCount = ?';
       params.push(parseInt(roundsCount, 10));
+    }
+    if (gameMode) {
+      query += ' AND gameMode = ?';
+      params.push(gameMode);
     }
 
     query += ` ORDER BY ${sortCol} ${sortOrder}`;
@@ -53,24 +57,24 @@ router.post('/score', (req, res) => {
       return res.status(400).json({ error: 'Ungültige Daten.', details: validation.errors });
     }
 
-    const { totalScore, difficulty, roundsCount, avgDistanceKm } = req.body;
+    const { totalScore, difficulty, roundsCount, avgDistanceKm, gameMode, totalTimeTakenSeconds } = req.body;
     const name = validation.name;
 
     // Check for duplicate entry
     const existing = db
       .prepare(
-        'SELECT id FROM leaderboard WHERE name = ? AND totalScore = ? AND difficulty = ? AND roundsCount = ?'
+        'SELECT id FROM leaderboard WHERE name = ? AND totalScore = ? AND difficulty = ? AND roundsCount = ? AND gameMode = ?'
       )
-      .get(name, totalScore, difficulty, roundsCount);
+      .get(name, totalScore, difficulty, roundsCount, gameMode);
 
     if (existing) {
       return res.status(409).json({ error: 'Eintrag existiert bereits.' });
     }
 
     const stmt = db.prepare(
-      'INSERT INTO leaderboard (name, totalScore, difficulty, roundsCount, avgDistanceKm) VALUES (?, ?, ?, ?, ?)'
+      'INSERT INTO leaderboard (name, totalScore, difficulty, roundsCount, avgDistanceKm, gameMode, totalTimeTakenSeconds) VALUES (?, ?, ?, ?, ?, ?, ?)'
     );
-    const result = stmt.run(name, totalScore, difficulty, roundsCount, avgDistanceKm ?? null);
+    const result = stmt.run(name, totalScore, difficulty, roundsCount, avgDistanceKm ?? null, gameMode, totalTimeTakenSeconds ?? null);
 
     const newEntry = db.prepare('SELECT * FROM leaderboard WHERE id = ?').get(result.lastInsertRowid);
     res.status(201).json(newEntry);

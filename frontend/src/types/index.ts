@@ -1,5 +1,6 @@
 export type Difficulty = 'Easy' | 'Medium' | 'Hard';
 export type RoundsCount = 3 | 5 | 7;
+export type GameMode = 'Classic' | 'Zen';
 
 export interface LatLng {
   latitude: number;
@@ -13,12 +14,14 @@ export interface RoundResult {
   distanceKm: number | null;
   score: number;
   timedOut: boolean;
+  timeTakenSeconds: number | null;
 }
 
 export interface GameConfig {
   playerName: string;
   difficulty: Difficulty;
   roundsCount: RoundsCount;
+  gameMode: GameMode;
 }
 
 export interface GameState extends GameConfig {
@@ -34,6 +37,8 @@ export interface LeaderboardEntry {
   difficulty: Difficulty;
   roundsCount: number;
   avgDistanceKm: number | null;
+  gameMode: GameMode;
+  totalTimeTakenSeconds: number | null;
   timestamp: string;
 }
 
@@ -72,4 +77,10 @@ export const DIFFICULTY_ZOOM: Record<Difficulty, number> = {
   Easy: 6,
   Medium: 10,
   Hard: 13,
+};
+
+export const ZEN_TIME_BONUS_WINDOW: Record<Difficulty, number> = {
+  Easy: 120,
+  Medium: 90,
+  Hard: 60,
 };
