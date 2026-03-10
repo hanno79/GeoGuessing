@@ -549,5 +549,5 @@ button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
   .summary-stats { grid-template-columns: 1fr 1fr; }
   .summary-round { grid-template-columns: 2rem 1fr auto; }
   .round-dist { display: none; }
-  .navbar-links a span { display: none; }
+  .navbar-links a span:last-child { display: none; }
 }
