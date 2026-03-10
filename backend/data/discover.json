@@ -1,6 +1,18 @@
 {
   "changelog": [
     {
+      "version": "1.2.1",
+      "date": "2026-03-10",
+      "title": "Scoring-Balance & Zeitmessung",
+      "entries": [
+        "Zeitmessung jetzt auch im Classic-Modus sichtbar",
+        "Bestenliste: Bei Punktgleichstand entscheidet die schnellere Zeit",
+        "Bestenliste: Spaltenreihenfolge optimiert (Ø Punkte vor Score)",
+        "Zen-Modus Scoring auf 5.000er-Skala normalisiert (faire Vergleichbarkeit)",
+        "Spielergebnis zeigt Gesamtzeit und Rundenzeiten für alle Modi"
+      ]
+    },
+    {
       "version": "1.2.0",
       "date": "2026-03-10",
       "title": "CityHunt Modus",
