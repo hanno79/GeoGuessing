@@ -1,5 +1,6 @@
 const MAX_SCORE = 5000;
 const MAX_DISTANCE_KM = 5000;
+const MAX_DISTANCE_SCORE_ZEN = 4000;
 
 /**
  * Calculates the round score based on distance.
@@ -10,6 +11,16 @@ const MAX_DISTANCE_KM = 5000;
 export function calculateScore(distanceKm: number): number {
   if (distanceKm <= 0) return MAX_SCORE;
   return Math.max(0, Math.floor(MAX_SCORE * (1 - distanceKm / MAX_DISTANCE_KM)));
+}
+
+/**
+ * Calculates the distance score for Zen mode (max 4000).
+ * Combined with time bonus (max 1000) the total max equals 5000,
+ * matching Classic mode's maximum for fair leaderboard comparison.
+ */
+export function calculateZenDistanceScore(distanceKm: number): number {
+  if (distanceKm <= 0) return MAX_DISTANCE_SCORE_ZEN;
+  return Math.max(0, Math.floor(MAX_DISTANCE_SCORE_ZEN * (1 - distanceKm / MAX_DISTANCE_KM)));
 }
 
 const MAX_TIME_BONUS = 1000;

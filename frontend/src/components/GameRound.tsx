@@ -4,7 +4,7 @@ import { useGame } from '../context/GameContext';
 import type { LatLng } from '../types';
 import { ZEN_TIME_BONUS_WINDOW } from '../types';
 import { haversineDistance } from '../utils/haversine';
-import { calculateScore, calculateTimeBonus, formatDistance, formatScore, formatTime } from '../utils/scoreCalculator';
+import { calculateScore, calculateZenDistanceScore, calculateTimeBonus, formatDistance, formatScore, formatTime } from '../utils/scoreCalculator';
 import CountdownTimer from './CountdownTimer';
 import ElapsedTimer from './ElapsedTimer';
 import ImageryMap from './ImageryMap';
@@ -72,7 +72,7 @@ export default function GameRound() {
       if (phase !== 'playing' || !target) return;
 
       const dist = haversineDistance(ll.latitude, ll.longitude, target.latitude, target.longitude);
-      const distScore = calculateScore(dist);
+      const distScore = isZen ? calculateZenDistanceScore(dist) : calculateScore(dist);
       const elapsed = (Date.now() - roundStartTime.current) / 1000;
       const bonus = isZen ? calculateTimeBonus(elapsed, ZEN_TIME_BONUS_WINDOW[state.difficulty]) : 0;
       const totalRoundScore = distScore + bonus;

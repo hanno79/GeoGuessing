@@ -47,6 +47,26 @@ function initDatabase() {
       db.exec("ALTER TABLE leaderboard ADD COLUMN gameCategory TEXT NOT NULL DEFAULT 'SkyView'");
     }
 
+    // Migration: normalize existing Zen scores from 6000-scale to 5000-scale
+    const migrationTable = db.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='_migrations'"
+    ).get();
+    if (!migrationTable) {
+      db.exec("CREATE TABLE _migrations (name TEXT PRIMARY KEY, applied_at DATETIME DEFAULT CURRENT_TIMESTAMP)");
+    }
+    const zenMigration = db.prepare(
+      "SELECT name FROM _migrations WHERE name = 'normalize_zen_scores_v1'"
+    ).get();
+    if (!zenMigration) {
+      db.exec(`
+        UPDATE leaderboard
+        SET totalScore = CAST(ROUND(totalScore * 5000.0 / 6000.0) AS INTEGER)
+        WHERE gameMode = 'Zen'
+      `);
+      db.prepare("INSERT INTO _migrations (name) VALUES (?)").run('normalize_zen_scores_v1');
+      console.log('Migration: normalized existing Zen scores to 5000-scale');
+    }
+
     console.log('Database initialized at', DB_PATH);
   } catch (err) {
     console.error('Database initialization failed:', err.message);
