@@ -159,6 +159,7 @@ export default function GameRound() {
             interactive={phase === 'playing'}
             showResult={phase === 'result'}
             onGuess={handleGuess}
+            hideLabels={isCityHunt}
           />
 
           {/* Result overlay */}

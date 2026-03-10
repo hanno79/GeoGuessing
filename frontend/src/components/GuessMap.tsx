@@ -14,6 +14,9 @@ const MAP_URL =
   import.meta.env.VITE_MAP_TILE_URL ||
   'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
+const MAP_URL_NO_LABELS =
+  'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png';
+
 // Custom colored markers
 function makeIcon(color: string, label: string) {
   return L.divIcon({
@@ -65,9 +68,10 @@ interface Props {
   interactive: boolean;
   showResult: boolean;
   onGuess: (ll: LatLng) => void;
+  hideLabels?: boolean;
 }
 
-export default function GuessMap({ guess, target, interactive, showResult, onGuess }: Props) {
+export default function GuessMap({ guess, target, interactive, showResult, onGuess, hideLabels = false }: Props) {
   const [tileError, setTileError] = useState(false);
   const errorCount = useRef(0);
 
@@ -93,8 +97,10 @@ export default function GuessMap({ guess, target, interactive, showResult, onGue
         aria-label={interactive ? 'Klick auf die Karte um deinen Tipp zu setzen' : 'Ergebniskarte'}
       >
         <TileLayer
-          url={MAP_URL}
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url={hideLabels ? MAP_URL_NO_LABELS : MAP_URL}
+          attribution={hideLabels
+            ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
+            : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}
           eventHandlers={{ tileerror: handleTileError }}
         />
 
