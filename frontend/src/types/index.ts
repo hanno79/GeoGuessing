@@ -44,6 +44,7 @@ export interface LeaderboardEntry {
   gameMode: GameMode;
   gameCategory: GameCategory;
   totalTimeTakenSeconds: number | null;
+  scorePerRound: number;
   timestamp: string;
 }
 

@@ -4,20 +4,20 @@ const { validateScorePayload } = require('../utils/validation');
 
 const router = express.Router();
 
-const ALLOWED_SORT_COLUMNS = ['totalScore', 'avgDistanceKm', 'timestamp', 'name', 'difficulty', 'roundsCount', 'gameMode', 'gameCategory', 'totalTimeTakenSeconds'];
+const ALLOWED_SORT_COLUMNS = ['totalScore', 'scorePerRound', 'avgDistanceKm', 'timestamp', 'name', 'difficulty', 'roundsCount', 'gameMode', 'gameCategory', 'totalTimeTakenSeconds'];
 const ALLOWED_ORDERS = ['asc', 'desc'];
 
 // GET /api/leaderboard
 router.get('/leaderboard', (req, res) => {
   try {
     const db = getDb();
-    const { difficulty, roundsCount, gameMode, gameCategory, sort = 'totalScore', order = 'desc', limit = 50 } = req.query;
+    const { difficulty, roundsCount, gameMode, gameCategory, sort = 'scorePerRound', order = 'desc', limit = 50 } = req.query;
 
-    const sortCol = ALLOWED_SORT_COLUMNS.includes(sort) ? sort : 'totalScore';
+    const sortCol = ALLOWED_SORT_COLUMNS.includes(sort) ? sort : 'scorePerRound';
     const sortOrder = ALLOWED_ORDERS.includes(order?.toLowerCase()) ? order.toUpperCase() : 'DESC';
     const limitNum = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200);
 
-    let query = 'SELECT * FROM leaderboard WHERE 1=1';
+    let query = 'SELECT *, ROUND(CAST(totalScore AS REAL) / roundsCount, 1) AS scorePerRound FROM leaderboard WHERE 1=1';
     const params = [];
 
     if (difficulty) {

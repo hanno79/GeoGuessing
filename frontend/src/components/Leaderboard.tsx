@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import type { LeaderboardEntry, Difficulty, GameMode, GameCategory } from '../types';
 import { formatDistance, formatScore, formatTime } from '../utils/scoreCalculator';
 
-type SortKey = keyof Pick<LeaderboardEntry, 'totalScore' | 'avgDistanceKm' | 'timestamp' | 'name' | 'roundsCount' | 'totalTimeTakenSeconds'>;
+type SortKey = keyof Pick<LeaderboardEntry, 'totalScore' | 'scorePerRound' | 'avgDistanceKm' | 'timestamp' | 'name' | 'roundsCount' | 'totalTimeTakenSeconds'>;
 type SortDir = 'asc' | 'desc';
 
 const DIFFICULTIES: (Difficulty | '')[] = ['', 'Easy', 'Medium', 'Hard'];
@@ -24,7 +24,7 @@ export default function Leaderboard() {
   const [rounds, setRounds] = useState('');
   const [gameMode, setGameMode] = useState<GameMode | ''>('');
   const [gameCategory, setGameCategory] = useState<GameCategory | ''>('');
-  const [sort, setSort] = useState<SortKey>('totalScore');
+  const [sort, setSort] = useState<SortKey>('scorePerRound');
   const [order, setOrder] = useState<SortDir>('desc');
 
   const load = useCallback(async () => {
@@ -169,6 +169,13 @@ export default function Leaderboard() {
                 >
                   Score{sortIndicator('totalScore')}
                 </th>
+                <th
+                  className={sort === 'scorePerRound' ? 'sorted' : ''}
+                  onClick={() => toggleSort('scorePerRound')}
+                  aria-sort={sort === 'scorePerRound' ? (order === 'asc' ? 'ascending' : 'descending') : 'none'}
+                >
+                  Ø Punkte{sortIndicator('scorePerRound')}
+                </th>
                 <th>Kategorie</th>
                 <th>Modus</th>
                 <th>Schwierigkeit</th>
@@ -206,6 +213,7 @@ export default function Leaderboard() {
                   </td>
                   <td className="lb-name">{e.name}</td>
                   <td className="lb-score">{formatScore(e.totalScore)}</td>
+                  <td className="lb-score">{formatScore(Math.round(e.scorePerRound))}</td>
                   <td><span className="lb-category">{e.gameCategory === 'CityHunt' ? '🏙' : '🛰'}</span></td>
                   <td><span className={`lb-mode`}>{e.gameMode ?? 'Classic'}</span></td>
                   <td><span className={`lb-diff ${e.difficulty}`}>{e.difficulty}</span></td>
