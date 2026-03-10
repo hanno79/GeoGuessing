@@ -12,6 +12,9 @@ export default function GameSummary() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState('');
 
+  const bestRound = [...state.rounds].sort((a, b) => b.score - a.score)[0];
+  const totalTimeTaken = state.rounds.reduce((sum, r) => sum + (r.timeTakenSeconds ?? 0), 0);
+
   async function handleSave() {
     setSaveStatus('saving');
     setSaveError('');
@@ -53,10 +56,6 @@ export default function GameSummary() {
     dispatch({ type: 'RESET' });
     navigate('/');
   }
-
-  const bestRound = [...state.rounds].sort((a, b) => b.score - a.score)[0];
-  const isZen = state.gameMode === 'Zen';
-  const totalTimeTaken = state.rounds.reduce((sum, r) => sum + (r.timeTakenSeconds ?? 0), 0);
 
   return (
     <div className="summary">
