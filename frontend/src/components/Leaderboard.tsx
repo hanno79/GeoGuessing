@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
-import type { LeaderboardEntry, Difficulty } from '../types';
-import { formatDistance, formatScore } from '../utils/scoreCalculator';
+import type { LeaderboardEntry, Difficulty, GameMode, GameCategory } from '../types';
+import { formatDistance, formatScore, formatTime } from '../utils/scoreCalculator';
 
-type SortKey = keyof Pick<LeaderboardEntry, 'totalScore' | 'avgDistanceKm' | 'timestamp' | 'name' | 'roundsCount'>;
+type SortKey = keyof Pick<LeaderboardEntry, 'totalScore' | 'avgDistanceKm' | 'timestamp' | 'name' | 'roundsCount' | 'totalTimeTakenSeconds'>;
 type SortDir = 'asc' | 'desc';
 
 const DIFFICULTIES: (Difficulty | '')[] = ['', 'Easy', 'Medium', 'Hard'];
@@ -22,6 +22,8 @@ export default function Leaderboard() {
 
   const [difficulty, setDifficulty] = useState<Difficulty | ''>('');
   const [rounds, setRounds] = useState('');
+  const [gameMode, setGameMode] = useState<GameMode | ''>('');
+  const [gameCategory, setGameCategory] = useState<GameCategory | ''>('');
   const [sort, setSort] = useState<SortKey>('totalScore');
   const [order, setOrder] = useState<SortDir>('desc');
 
@@ -31,6 +33,8 @@ export default function Leaderboard() {
     const params = new URLSearchParams();
     if (difficulty) params.set('difficulty', difficulty);
     if (rounds) params.set('roundsCount', rounds);
+    if (gameMode) params.set('gameMode', gameMode);
+    if (gameCategory) params.set('gameCategory', gameCategory);
     params.set('sort', sort);
     params.set('order', order);
 
@@ -44,7 +48,7 @@ export default function Leaderboard() {
     } finally {
       setLoading(false);
     }
-  }, [difficulty, rounds, sort, order]);
+  }, [difficulty, rounds, gameMode, gameCategory, sort, order]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -53,7 +57,7 @@ export default function Leaderboard() {
       setOrder((o) => (o === 'desc' ? 'asc' : 'desc'));
     } else {
       setSort(key);
-      setOrder(key === 'avgDistanceKm' ? 'asc' : 'desc');
+      setOrder(key === 'avgDistanceKm' || key === 'totalTimeTakenSeconds' ? 'asc' : 'desc');
     }
   }
 
@@ -103,6 +107,32 @@ export default function Leaderboard() {
           </select>
         </div>
 
+        <div className="lb-filter-group">
+          <label htmlFor="lb-category">Kategorie</label>
+          <select
+            id="lb-category"
+            value={gameCategory}
+            onChange={(e) => setGameCategory(e.target.value as GameCategory | '')}
+          >
+            <option value="">Alle</option>
+            <option value="SkyView">🛰 SkyView</option>
+            <option value="CityHunt">🏙 CityHunt</option>
+          </select>
+        </div>
+
+        <div className="lb-filter-group">
+          <label htmlFor="lb-gamemode">Spielmodus</label>
+          <select
+            id="lb-gamemode"
+            value={gameMode}
+            onChange={(e) => setGameMode(e.target.value as GameMode | '')}
+          >
+            <option value="">Alle</option>
+            <option value="Classic">Classic</option>
+            <option value="Zen">Zen</option>
+          </select>
+        </div>
+
         <button className="btn btn-secondary" onClick={load} type="button" style={{ alignSelf: 'flex-end' }}>
           🔄 Aktualisieren
         </button>
@@ -139,6 +169,8 @@ export default function Leaderboard() {
                 >
                   Score{sortIndicator('totalScore')}
                 </th>
+                <th>Kategorie</th>
+                <th>Modus</th>
                 <th>Schwierigkeit</th>
                 <th
                   className={sort === 'roundsCount' ? 'sorted' : ''}
@@ -151,6 +183,12 @@ export default function Leaderboard() {
                   onClick={() => toggleSort('avgDistanceKm')}
                 >
                   Ø Distanz{sortIndicator('avgDistanceKm')}
+                </th>
+                <th
+                  className={sort === 'totalTimeTakenSeconds' ? 'sorted' : ''}
+                  onClick={() => toggleSort('totalTimeTakenSeconds')}
+                >
+                  Zeit{sortIndicator('totalTimeTakenSeconds')}
                 </th>
                 <th
                   className={sort === 'timestamp' ? 'sorted' : ''}
@@ -168,9 +206,14 @@ export default function Leaderboard() {
                   </td>
                   <td className="lb-name">{e.name}</td>
                   <td className="lb-score">{formatScore(e.totalScore)}</td>
+                  <td><span className="lb-category">{e.gameCategory === 'CityHunt' ? '🏙' : '🛰'}</span></td>
+                  <td><span className={`lb-mode`}>{e.gameMode ?? 'Classic'}</span></td>
                   <td><span className={`lb-diff ${e.difficulty}`}>{e.difficulty}</span></td>
                   <td>{e.roundsCount}</td>
                   <td>{e.avgDistanceKm !== null ? formatDistance(e.avgDistanceKm) : '—'}</td>
+                  <td style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                    {e.totalTimeTakenSeconds != null ? formatTime(e.totalTimeTakenSeconds) : '—'}
+                  </td>
                   <td style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
                     {formatDate(e.timestamp)}
                   </td>

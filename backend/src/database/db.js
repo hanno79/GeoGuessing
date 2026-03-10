@@ -29,9 +29,23 @@ function initDatabase() {
         difficulty TEXT NOT NULL,
         roundsCount INTEGER NOT NULL,
         avgDistanceKm REAL,
+        gameMode TEXT NOT NULL DEFAULT 'Classic',
+        totalTimeTakenSeconds REAL,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // Migration: add columns if they don't exist (for existing databases)
+    const cols = db.prepare("PRAGMA table_info(leaderboard)").all().map(c => c.name);
+    if (!cols.includes('gameMode')) {
+      db.exec("ALTER TABLE leaderboard ADD COLUMN gameMode TEXT NOT NULL DEFAULT 'Classic'");
+    }
+    if (!cols.includes('totalTimeTakenSeconds')) {
+      db.exec("ALTER TABLE leaderboard ADD COLUMN totalTimeTakenSeconds REAL");
+    }
+    if (!cols.includes('gameCategory')) {
+      db.exec("ALTER TABLE leaderboard ADD COLUMN gameCategory TEXT NOT NULL DEFAULT 'SkyView'");
+    }
 
     console.log('Database initialized at', DB_PATH);
   } catch (err) {

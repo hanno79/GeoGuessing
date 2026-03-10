@@ -1,13 +1,31 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
-import type { Difficulty, RoundsCount } from '../types';
-import { DIFFICULTY_TIMER } from '../types';
+import type { Difficulty, RoundsCount, GameMode, GameCategory } from '../types';
+import { DIFFICULTY_TIMER, ZEN_TIME_BONUS_WINDOW } from '../types';
 
-const DIFFICULTY_DESC: Record<Difficulty, string> = {
+const DIFFICULTY_DESC_CLASSIC: Record<Difficulty, string> = {
   Easy:   '60 s · Weite Ansicht — Landschaften erkennbar',
   Medium: '45 s · Stadtebene — Orientierende Details',
   Hard:   '30 s · Straßenebene — Nur Gebäude & Infrastruktur',
+};
+
+const DIFFICULTY_DESC_ZEN: Record<Difficulty, string> = {
+  Easy:   'Weite Ansicht — Landschaften erkennbar',
+  Medium: 'Stadtebene — Orientierende Details',
+  Hard:   'Straßenebene — Nur Gebäude & Infrastruktur',
+};
+
+const CITY_DIFFICULTY_DESC_CLASSIC: Record<Difficulty, string> = {
+  Easy:   '60 s · Stadtname + Land — Bekannte Metropolen',
+  Medium: '45 s · Nur Stadtname — Größere Städte weltweit',
+  Hard:   '30 s · Nur Stadtname — Auch weniger bekannte Städte',
+};
+
+const CITY_DIFFICULTY_DESC_ZEN: Record<Difficulty, string> = {
+  Easy:   'Stadtname + Land — Bekannte Metropolen',
+  Medium: 'Nur Stadtname — Größere Städte weltweit',
+  Hard:   'Nur Stadtname — Auch weniger bekannte Städte',
 };
 
 export default function Home() {
@@ -18,6 +36,8 @@ export default function Home() {
   const [nameError, setNameError]   = useState('');
   const [difficulty, setDifficulty] = useState<Difficulty>('Medium');
   const [roundsCount, setRoundsCount] = useState<RoundsCount>(5);
+  const [gameMode, setGameMode] = useState<GameMode>('Classic');
+  const [gameCategory, setGameCategory] = useState<GameCategory>('SkyView');
 
   const NAME_REGEX = /^[a-zA-Z0-9\-_]+$/;
 
@@ -32,7 +52,7 @@ export default function Home() {
   function handleStart() {
     const err = validateName(playerName);
     if (err) { setNameError(err); return; }
-    dispatch({ type: 'START_GAME', config: { playerName: playerName.trim(), difficulty, roundsCount } });
+    dispatch({ type: 'START_GAME', config: { playerName: playerName.trim(), difficulty, roundsCount, gameMode, gameCategory } });
     navigate('/game');
   }
 
@@ -40,7 +60,11 @@ export default function Home() {
     <div className="home">
       <div className="home-hero">
         <h1>Geo<span>Guessing</span></h1>
-        <p>Erkenne den Ort auf dem Satellitenbild und markiere ihn auf der Weltkarte.</p>
+        <p>
+          {gameCategory === 'SkyView'
+            ? 'Erkenne den Ort auf dem Satellitenbild und markiere ihn auf der Weltkarte.'
+            : 'Finde die Stadt auf der Weltkarte — nur anhand des Namens!'}
+        </p>
       </div>
 
       <div className="card">
@@ -61,6 +85,62 @@ export default function Home() {
           {nameError && <span id="name-error" className="form-error" role="alert">{nameError}</span>}
         </div>
 
+        {/* Game Category */}
+        <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+          <label>Spielkategorie</label>
+          <div className="option-group" role="group" aria-label="Spielkategorie">
+            <button
+              className={`option-btn ${gameCategory === 'SkyView' ? 'selected' : ''}`}
+              onClick={() => setGameCategory('SkyView')}
+              aria-pressed={gameCategory === 'SkyView'}
+              type="button"
+            >
+              🛰 SkyView
+            </button>
+            <button
+              className={`option-btn ${gameCategory === 'CityHunt' ? 'selected' : ''}`}
+              onClick={() => setGameCategory('CityHunt')}
+              aria-pressed={gameCategory === 'CityHunt'}
+              type="button"
+            >
+              🏙 CityHunt
+            </button>
+          </div>
+          <span className="difficulty-hint">
+            {gameCategory === 'SkyView'
+              ? 'Erkenne Orte anhand von Satellitenbildern'
+              : 'Finde Städte auf der Weltkarte anhand ihres Namens'}
+          </span>
+        </div>
+
+        {/* Game Mode */}
+        <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+          <label>Spielmodus</label>
+          <div className="option-group" role="group" aria-label="Spielmodus">
+            <button
+              className={`option-btn ${gameMode === 'Classic' ? 'selected' : ''}`}
+              onClick={() => setGameMode('Classic')}
+              aria-pressed={gameMode === 'Classic'}
+              type="button"
+            >
+              ⏱ Classic
+            </button>
+            <button
+              className={`option-btn ${gameMode === 'Zen' ? 'selected' : ''}`}
+              onClick={() => setGameMode('Zen')}
+              aria-pressed={gameMode === 'Zen'}
+              type="button"
+            >
+              🧘 Zen
+            </button>
+          </div>
+          <span className="difficulty-hint">
+            {gameMode === 'Classic'
+              ? 'Mit Timer — Zeit läuft ab, dann 0 Punkte'
+              : `Ohne Timer — Schnelligkeit gibt bis zu 1.000 Bonuspunkte (${ZEN_TIME_BONUS_WINDOW[difficulty]}s Fenster)`}
+          </span>
+        </div>
+
         {/* Difficulty */}
         <div className="form-group" style={{ marginBottom: '1.25rem' }}>
           <label>Schwierigkeitsgrad</label>
@@ -77,7 +157,11 @@ export default function Home() {
               </button>
             ))}
           </div>
-          <span className="difficulty-hint">{DIFFICULTY_DESC[difficulty]}</span>
+          <span className="difficulty-hint">
+            {gameCategory === 'SkyView'
+              ? (gameMode === 'Classic' ? DIFFICULTY_DESC_CLASSIC[difficulty] : DIFFICULTY_DESC_ZEN[difficulty])
+              : (gameMode === 'Classic' ? CITY_DIFFICULTY_DESC_CLASSIC[difficulty] : CITY_DIFFICULTY_DESC_ZEN[difficulty])}
+          </span>
         </div>
 
         {/* Rounds */}
@@ -105,8 +189,11 @@ export default function Home() {
 
       <div className="card" style={{ textAlign: 'center', padding: '1rem' }}>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-          Zeitlimit: <strong>{DIFFICULTY_TIMER[difficulty]} s</strong> pro Runde · {roundsCount} Runden ·
-          Max. <strong>{roundsCount * 5000}</strong> Punkte
+          {gameMode === 'Classic' ? (
+            <>Zeitlimit: <strong>{DIFFICULTY_TIMER[difficulty]} s</strong> pro Runde · {roundsCount} Runden · Max. <strong>{(roundsCount * 5000).toLocaleString('de-DE')}</strong> Punkte</>
+          ) : (
+            <>Kein Zeitlimit · {roundsCount} Runden · Max. <strong>{(roundsCount * 6000).toLocaleString('de-DE')}</strong> Punkte</>
+          )}
         </p>
       </div>
     </div>

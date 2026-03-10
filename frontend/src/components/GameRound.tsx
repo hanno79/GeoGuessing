@@ -2,11 +2,14 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
 import type { LatLng } from '../types';
+import { ZEN_TIME_BONUS_WINDOW } from '../types';
 import { haversineDistance } from '../utils/haversine';
-import { calculateScore, formatDistance, formatScore } from '../utils/scoreCalculator';
+import { calculateScore, calculateTimeBonus, formatDistance, formatScore, formatTime } from '../utils/scoreCalculator';
 import CountdownTimer from './CountdownTimer';
+import ElapsedTimer from './ElapsedTimer';
 import ImageryMap from './ImageryMap';
 import GuessMap from './GuessMap';
+import CityNameDisplay from './CityNameDisplay';
 
 type Phase = 'loading' | 'playing' | 'result' | 'error';
 
@@ -19,8 +22,15 @@ export default function GameRound() {
   const [guess, setGuess]   = useState<LatLng | null>(null);
   const [distKm, setDistKm] = useState<number | null>(null);
   const [roundScore, setRoundScore] = useState<number>(0);
+  const [timeBonus, setTimeBonus] = useState<number>(0);
+  const [elapsedSec, setElapsedSec] = useState<number>(0);
+  const [cityName, setCityName] = useState<string | null>(null);
+  const [countryName, setCountryName] = useState<string | null>(null);
 
   const timedOut = useRef(false);
+  const roundStartTime = useRef<number>(Date.now());
+  const isZen = state.gameMode === 'Zen';
+  const isCityHunt = state.gameCategory === 'CityHunt';
 
   // Load a new location when the round index changes
   useEffect(() => {
@@ -30,13 +40,23 @@ export default function GameRound() {
     setTarget(null);
     setGuess(null);
     setDistKm(null);
+    setTimeBonus(0);
+    setElapsedSec(0);
+    setCityName(null);
+    setCountryName(null);
 
-    fetch('/api/location')
+    const url = isCityHunt ? `/api/city?difficulty=${state.difficulty}` : '/api/location';
+    fetch(url)
       .then((r) => r.json())
-      .then((data: LatLng) => {
+      .then((data) => {
         if (!cancelled) {
-          setTarget(data);
+          setTarget({ latitude: data.latitude, longitude: data.longitude });
+          if (isCityHunt) {
+            setCityName(data.city);
+            setCountryName(data.country ?? null);
+          }
           setPhase('playing');
+          roundStartTime.current = Date.now();
         }
       })
       .catch(() => {
@@ -44,6 +64,7 @@ export default function GameRound() {
       });
 
     return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.currentRoundIndex]);
 
   const handleGuess = useCallback(
@@ -51,22 +72,30 @@ export default function GameRound() {
       if (phase !== 'playing' || !target) return;
 
       const dist = haversineDistance(ll.latitude, ll.longitude, target.latitude, target.longitude);
-      const score = calculateScore(dist);
+      const distScore = calculateScore(dist);
+      const elapsed = (Date.now() - roundStartTime.current) / 1000;
+      const bonus = isZen ? calculateTimeBonus(elapsed, ZEN_TIME_BONUS_WINDOW[state.difficulty]) : 0;
+      const totalRoundScore = distScore + bonus;
 
       setGuess(ll);
       setDistKm(dist);
-      setRoundScore(score);
+      setRoundScore(totalRoundScore);
+      setTimeBonus(bonus);
+      setElapsedSec(Math.floor(elapsed));
       setPhase('result');
 
       dispatch({
         type: 'SUBMIT_GUESS',
         guess: ll,
         distanceKm: dist,
-        score,
+        score: totalRoundScore,
         targetLocation: target,
+        timeTakenSeconds: isZen ? Math.floor(elapsed) : null,
+        cityName: cityName ?? undefined,
+        countryName: countryName ?? undefined,
       });
     },
-    [phase, target, dispatch]
+    [phase, target, dispatch, isZen, state.difficulty]
   );
 
   const handleTimeout = useCallback(() => {
@@ -93,25 +122,31 @@ export default function GameRound() {
     <div className="game-round">
       {/* ── Maps ── */}
       <div className="game-maps">
-        {/* Left: imagery */}
+        {/* Left: imagery or city name */}
         <div className="map-pane">
-          <div className="map-label" aria-hidden="true">📷 Satellitenansicht</div>
+          <div className="map-label" aria-hidden="true">
+            {isCityHunt ? '🏙 Welche Stadt?' : '📷 Satellitenansicht'}
+          </div>
           {phase === 'loading' && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}>
-              Lade Standort …
+              {isCityHunt ? 'Lade Stadt …' : 'Lade Standort …'}
             </div>
           )}
           {phase === 'error' && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--danger)' }}>
-              ⚠️ Standort konnte nicht geladen werden.
+              {isCityHunt ? '⚠️ Stadt konnte nicht geladen werden.' : '⚠️ Standort konnte nicht geladen werden.'}
             </div>
           )}
           {target && (phase === 'playing' || phase === 'result') && (
-            <ImageryMap
-              latitude={target.latitude}
-              longitude={target.longitude}
-              difficulty={state.difficulty}
-            />
+            isCityHunt ? (
+              <CityNameDisplay city={cityName ?? ''} country={countryName} />
+            ) : (
+              <ImageryMap
+                latitude={target.latitude}
+                longitude={target.longitude}
+                difficulty={state.difficulty}
+              />
+            )
           )}
         </div>
 
@@ -134,6 +169,11 @@ export default function GameRound() {
                   <h3>Deine Distanz</h3>
                   <div className="result-distance">{formatDistance(distKm ?? 0)}</div>
                   <div className="result-score">+{formatScore(roundScore)} Punkte</div>
+                  {isZen && (
+                    <div className="result-time-bonus" style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                      {formatTime(elapsedSec)} · +{formatScore(timeBonus)} Zeitbonus
+                    </div>
+                  )}
                 </>
               ) : (
                 <>
@@ -159,15 +199,26 @@ export default function GameRound() {
           </div>
           <div className="game-info-item">
             <span>Modus</span>
+            <span>{state.gameMode}</span>
+          </div>
+          <div className="game-info-item">
+            <span>Schwierigkeit</span>
             <span>{state.difficulty}</span>
           </div>
         </div>
 
-        {phase === 'playing' && target && (
+        {phase === 'playing' && target && !isZen && (
           <CountdownTimer
             difficulty={state.difficulty}
             running={phase === 'playing'}
             onTimeout={handleTimeout}
+          />
+        )}
+
+        {phase === 'playing' && target && isZen && (
+          <ElapsedTimer
+            running={phase === 'playing'}
+            startTime={roundStartTime.current}
           />
         )}
 
@@ -183,8 +234,10 @@ export default function GameRound() {
         )}
 
         <div className="attribution">
-          Karte: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap</a> &nbsp;|&nbsp;
-          Satellit: <a href="https://www.esri.com" target="_blank" rel="noopener noreferrer">© Esri</a>
+          Karte: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap</a>
+          {!isCityHunt && (
+            <>&nbsp;|&nbsp;Satellit: <a href="https://www.esri.com" target="_blank" rel="noopener noreferrer">© Esri</a></>
+          )}
         </div>
       </footer>
     </div>

@@ -1,5 +1,7 @@
 const VALID_DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
 const VALID_ROUNDS = [3, 5, 7];
+const VALID_GAME_MODES = ['Classic', 'Zen'];
+const VALID_GAME_CATEGORIES = ['SkyView', 'CityHunt'];
 const NAME_REGEX = /^[a-zA-Z0-9\-_]+$/;
 
 /**
@@ -53,6 +55,20 @@ function validateScorePayload(body) {
     }
   }
 
+  if (!VALID_GAME_MODES.includes(body.gameMode)) {
+    errors.push(`gameMode must be one of: ${VALID_GAME_MODES.join(', ')}.`);
+  }
+
+  if (body.totalTimeTakenSeconds !== undefined && body.totalTimeTakenSeconds !== null) {
+    if (typeof body.totalTimeTakenSeconds !== 'number' || body.totalTimeTakenSeconds < 0) {
+      errors.push('totalTimeTakenSeconds must be a non-negative number.');
+    }
+  }
+
+  if (!VALID_GAME_CATEGORIES.includes(body.gameCategory)) {
+    errors.push(`gameCategory must be one of: ${VALID_GAME_CATEGORIES.join(', ')}.`);
+  }
+
   if (errors.length > 0) {
     return { valid: false, errors };
   }
@@ -60,4 +76,16 @@ function validateScorePayload(body) {
   return { valid: true, name: nameResult.value };
 }
 
-module.exports = { validateName, validateScorePayload };
+/**
+ * Validates that a location object has valid coordinates.
+ * Latitude must be between -90 and 90, longitude between -180 and 180.
+ */
+function validateCoordinates(location) {
+  if (location == null || typeof location !== 'object') return false;
+  const { latitude, longitude } = location;
+  if (typeof latitude !== 'number' || typeof longitude !== 'number') return false;
+  if (!isFinite(latitude) || !isFinite(longitude)) return false;
+  return latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180;
+}
+
+module.exports = { validateName, validateScorePayload, validateCoordinates, VALID_GAME_CATEGORIES };
