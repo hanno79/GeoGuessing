@@ -24,7 +24,7 @@ export default function GameSummary() {
       avgDistanceKm: avgDistance,
       gameMode: state.gameMode,
       gameCategory: state.gameCategory,
-      totalTimeTakenSeconds: isZen ? totalTimeTaken : null,
+      totalTimeTakenSeconds: totalTimeTaken,
     };
 
     try {
@@ -89,14 +89,12 @@ export default function GameSummary() {
             {bestRound ? formatScore(bestRound.score) : '0'}
           </div>
         </div>
-        {isZen && (
-          <div className="stat-card">
-            <div className="stat-label">Gesamtzeit</div>
-            <div className="stat-value" style={{ color: 'var(--accent-glow)' }}>
-              {formatTime(totalTimeTaken)}
-            </div>
+        <div className="stat-card">
+          <div className="stat-label">Gesamtzeit</div>
+          <div className="stat-value" style={{ color: 'var(--accent-glow)' }}>
+            {formatTime(totalTimeTaken)}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Round breakdown */}
@@ -116,11 +114,9 @@ export default function GameSummary() {
               <div className="round-dist">
                 {r.distanceKm !== null ? formatDistance(r.distanceKm) : 'Kein Tipp'}
               </div>
-              {isZen && (
-                <div className="round-time" style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-                  {r.timeTakenSeconds !== null ? formatTime(r.timeTakenSeconds) : '—'}
-                </div>
-              )}
+              <div className="round-time" style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                {r.timeTakenSeconds !== null ? formatTime(r.timeTakenSeconds) : '—'}
+              </div>
               <div className={`round-score-val ${r.score === 0 ? 'zero' : ''}`}>
                 +{formatScore(r.score)}
               </div>

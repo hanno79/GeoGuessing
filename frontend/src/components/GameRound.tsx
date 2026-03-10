@@ -90,7 +90,7 @@ export default function GameRound() {
         distanceKm: dist,
         score: totalRoundScore,
         targetLocation: target,
-        timeTakenSeconds: isZen ? Math.floor(elapsed) : null,
+        timeTakenSeconds: Math.floor(elapsed),
         cityName: cityName ?? undefined,
         countryName: countryName ?? undefined,
       });
@@ -101,10 +101,11 @@ export default function GameRound() {
   const handleTimeout = useCallback(() => {
     if (phase !== 'playing' || timedOut.current || !target) return;
     timedOut.current = true;
+    const elapsed = Math.floor((Date.now() - roundStartTime.current) / 1000);
     setDistKm(null);
     setRoundScore(0);
     setPhase('result');
-    dispatch({ type: 'TIMEOUT', targetLocation: target });
+    dispatch({ type: 'TIMEOUT', targetLocation: target, timeTakenSeconds: elapsed });
   }, [phase, target, dispatch]);
 
   const handleNext = () => {
@@ -170,11 +171,9 @@ export default function GameRound() {
                   <h3>Deine Distanz</h3>
                   <div className="result-distance">{formatDistance(distKm ?? 0)}</div>
                   <div className="result-score">+{formatScore(roundScore)} Punkte</div>
-                  {isZen && (
-                    <div className="result-time-bonus" style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                      {formatTime(elapsedSec)} · +{formatScore(timeBonus)} Zeitbonus
-                    </div>
-                  )}
+                  <div className="result-time-bonus" style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                    {formatTime(elapsedSec)}{isZen ? ` · +${formatScore(timeBonus)} Zeitbonus` : ''}
+                  </div>
                 </>
               ) : (
                 <>

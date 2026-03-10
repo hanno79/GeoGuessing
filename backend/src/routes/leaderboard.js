@@ -38,6 +38,7 @@ router.get('/leaderboard', (req, res) => {
     }
 
     query += ` ORDER BY ${sortCol} ${sortOrder}`;
+    if (sortCol !== 'totalTimeTakenSeconds') query += ', totalTimeTakenSeconds ASC';
     if (sortCol !== 'avgDistanceKm') query += ', avgDistanceKm ASC';
     if (sortCol !== 'timestamp') query += ', timestamp ASC';
     query += ' LIMIT ?';

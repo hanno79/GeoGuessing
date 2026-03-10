@@ -67,6 +67,26 @@ function initDatabase() {
       console.log('Migration: normalized existing Zen scores to 5000-scale');
     }
 
+    // Migration: fill NULL totalTimeTakenSeconds for existing Classic entries with max time
+    const timeMigration = db.prepare(
+      "SELECT name FROM _migrations WHERE name = 'backfill_classic_time_v1'"
+    ).get();
+    if (!timeMigration) {
+      // Classic timer limits: Easy=60s, Medium=45s, Hard=30s — use max time × roundsCount
+      db.exec(`
+        UPDATE leaderboard
+        SET totalTimeTakenSeconds = CASE difficulty
+          WHEN 'Easy' THEN 60.0 * roundsCount
+          WHEN 'Medium' THEN 45.0 * roundsCount
+          WHEN 'Hard' THEN 30.0 * roundsCount
+          ELSE 45.0 * roundsCount
+        END
+        WHERE totalTimeTakenSeconds IS NULL
+      `);
+      db.prepare("INSERT INTO _migrations (name) VALUES (?)").run('backfill_classic_time_v1');
+      console.log('Migration: backfilled Classic entries with default max time');
+    }
+
     console.log('Database initialized at', DB_PATH);
   } catch (err) {
     console.error('Database initialization failed:', err.message);

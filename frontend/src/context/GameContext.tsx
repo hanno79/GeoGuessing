@@ -19,7 +19,7 @@ const initialState: GameState = {
 type Action =
   | { type: 'START_GAME'; config: GameConfig }
   | { type: 'SUBMIT_GUESS'; guess: LatLng; distanceKm: number; score: number; targetLocation: LatLng; timeTakenSeconds: number | null; cityName?: string; countryName?: string }
-  | { type: 'TIMEOUT'; targetLocation: LatLng }
+  | { type: 'TIMEOUT'; targetLocation: LatLng; timeTakenSeconds?: number }
   | { type: 'NEXT_ROUND' }
   | { type: 'END_GAME' }
   | { type: 'RESET' };
@@ -58,7 +58,7 @@ function gameReducer(state: GameState, action: Action): GameState {
         distanceKm: null,
         score: 0,
         timedOut: true,
-        timeTakenSeconds: null,
+        timeTakenSeconds: action.timeTakenSeconds ?? null,
       };
       return { ...state, rounds: [...state.rounds, round], phase: 'result' };
     }
