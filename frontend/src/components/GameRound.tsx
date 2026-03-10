@@ -45,7 +45,19 @@ export default function GameRound() {
     setCityName(null);
     setCountryName(null);
 
-    const url = isCityHunt ? `/api/city?difficulty=${state.difficulty}` : '/api/location';
+    const usedTargets = state.rounds
+      .filter((r) => r.targetLocation)
+      .map((r) =>
+        isCityHunt
+          ? r.cityName
+          : `${r.targetLocation!.latitude},${r.targetLocation!.longitude}`,
+      );
+
+    const params = new URLSearchParams();
+    if (isCityHunt) params.set('difficulty', state.difficulty);
+    if (usedTargets.length > 0) params.set('exclude', JSON.stringify(usedTargets));
+
+    const url = isCityHunt ? `/api/city?${params}` : `/api/location?${params}`;
     fetch(url)
       .then((r) => r.json())
       .then((data) => {

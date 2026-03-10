@@ -13,6 +13,16 @@ const FALLBACK_CITY = { city: 'Berlin', country: 'Deutschland', latitude: 52.52,
 let locations = null;
 let cities = null;
 
+function parseExclude(raw) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 function loadLocations() {
   if (locations !== null) return locations;
   try {
@@ -44,8 +54,14 @@ function loadLocations() {
 // GET /api/location
 router.get('/location', (req, res) => {
   const locs = loadLocations();
-  const idx = Math.floor(Math.random() * locs.length);
-  const loc = locs[idx];
+  const exclude = new Set(parseExclude(req.query.exclude));
+  let pool = exclude.size > 0
+    ? locs.filter((l) => !exclude.has(`${l.latitude},${l.longitude}`))
+    : locs;
+  if (pool.length === 0) pool = locs;
+
+  const idx = Math.floor(Math.random() * pool.length);
+  const loc = pool[idx];
   res.json({ latitude: loc.latitude, longitude: loc.longitude });
 });
 
@@ -90,8 +106,14 @@ router.get('/city', (req, res) => {
   const pool = allCities.filter((c) => allowedDiffs.includes(c.difficulty));
   const selected = pool.length > 0 ? pool : allCities;
 
-  const idx = Math.floor(Math.random() * selected.length);
-  const city = selected[idx];
+  const exclude = new Set(parseExclude(req.query.exclude));
+  let filtered = exclude.size > 0
+    ? selected.filter((c) => !exclude.has(c.city))
+    : selected;
+  if (filtered.length === 0) filtered = selected;
+
+  const idx = Math.floor(Math.random() * filtered.length);
+  const city = filtered[idx];
 
   const result = {
     city: city.city,
