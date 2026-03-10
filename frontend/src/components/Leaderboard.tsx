@@ -163,18 +163,18 @@ export default function Leaderboard() {
                   Name{sortIndicator('name')}
                 </th>
                 <th
-                  className={sort === 'totalScore' ? 'sorted' : ''}
-                  onClick={() => toggleSort('totalScore')}
-                  aria-sort={sort === 'totalScore' ? (order === 'asc' ? 'ascending' : 'descending') : 'none'}
-                >
-                  Score{sortIndicator('totalScore')}
-                </th>
-                <th
                   className={sort === 'scorePerRound' ? 'sorted' : ''}
                   onClick={() => toggleSort('scorePerRound')}
                   aria-sort={sort === 'scorePerRound' ? (order === 'asc' ? 'ascending' : 'descending') : 'none'}
                 >
                   Ø Punkte{sortIndicator('scorePerRound')}
+                </th>
+                <th
+                  className={sort === 'totalScore' ? 'sorted' : ''}
+                  onClick={() => toggleSort('totalScore')}
+                  aria-sort={sort === 'totalScore' ? (order === 'asc' ? 'ascending' : 'descending') : 'none'}
+                >
+                  Score{sortIndicator('totalScore')}
                 </th>
                 <th>Kategorie</th>
                 <th>Modus</th>
@@ -212,8 +212,8 @@ export default function Leaderboard() {
                     {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
                   </td>
                   <td className="lb-name">{e.name}</td>
-                  <td className="lb-score">{formatScore(e.totalScore)}</td>
                   <td className="lb-score">{formatScore(Math.round(e.scorePerRound))}</td>
+                  <td className="lb-score">{formatScore(e.totalScore)}</td>
                   <td><span className="lb-category">{e.gameCategory === 'CityHunt' ? '🏙' : '🛰'}</span></td>
                   <td><span className={`lb-mode`}>{e.gameMode ?? 'Classic'}</span></td>
                   <td><span className={`lb-diff ${e.difficulty}`}>{e.difficulty}</span></td>
