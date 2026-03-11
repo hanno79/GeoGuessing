@@ -208,6 +208,30 @@ button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
   white-space: nowrap;
 }
 
+.vehicle-label {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  pointer-events: none;
+  animation: vehicleFadeIn 0.5s ease-out;
+  white-space: nowrap;
+}
+@keyframes vehicleFadeIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.vehicle-icon { background: none !important; border: none !important; }
+
 .map-tile-error {
   position: absolute;
   top: 50%;

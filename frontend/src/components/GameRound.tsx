@@ -216,6 +216,7 @@ export default function GameRound() {
             showResult={phase === 'result'}
             onGuess={handleGuess}
             hideLabels={isCityHunt || (isDaily && state.gameCategory === 'CityHunt')}
+            distKm={distKm}
           />
 
           {/* Result overlay */}
