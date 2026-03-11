@@ -87,6 +87,13 @@ function initDatabase() {
       console.log('Migration: backfilled Classic entries with default max time');
     }
 
+    // Migration: add dailyDate column for Daily Challenge
+    const cols2 = db.prepare("PRAGMA table_info(leaderboard)").all().map(c => c.name);
+    if (!cols2.includes('dailyDate')) {
+      db.exec("ALTER TABLE leaderboard ADD COLUMN dailyDate TEXT DEFAULT NULL");
+      console.log('Migration: added dailyDate column');
+    }
+
     console.log('Database initialized at', DB_PATH);
   } catch (err) {
     console.error('Database initialization failed:', err.message);

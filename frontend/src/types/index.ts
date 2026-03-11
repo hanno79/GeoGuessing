@@ -1,6 +1,6 @@
 export type Difficulty = 'Easy' | 'Medium' | 'Hard';
 export type RoundsCount = 3 | 5 | 7;
-export type GameMode = 'Classic' | 'Zen';
+export type GameMode = 'Classic' | 'Zen' | 'Daily' | 'Streak';
 export type GameCategory = 'SkyView' | 'CityHunt';
 
 export interface LatLng {
@@ -23,16 +23,24 @@ export interface RoundResult {
 export interface GameConfig {
   playerName: string;
   difficulty: Difficulty;
-  roundsCount: RoundsCount;
+  roundsCount: number;
   gameMode: GameMode;
   gameCategory: GameCategory;
+  dailyDate?: string;
 }
 
 export interface GameState extends GameConfig {
   rounds: RoundResult[];
   currentRoundIndex: number;
   phase: 'setup' | 'playing' | 'result' | 'summary';
+  streakFailed?: boolean;
 }
+
+export const STREAK_THRESHOLD: Record<Difficulty, number> = {
+  Easy: 500,
+  Medium: 300,
+  Hard: 150,
+};
 
 export interface LeaderboardEntry {
   id: number;

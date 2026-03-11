@@ -80,6 +80,19 @@ button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 .navbar-links a:hover,
 .navbar-links a.active { color: var(--text); background: var(--bg-hover); }
 
+.sound-toggle {
+  background: none;
+  border: none;
+  font-size: 1.15rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--transition), background var(--transition);
+  line-height: 1;
+}
+.sound-toggle:hover { color: var(--text); background: var(--bg-hover); }
+
 .main-content { flex: 1; padding: 2rem 1.5rem; max-width: 1200px; margin: 0 auto; width: 100%; }
 .main-content.full-width { max-width: none; padding: 0; }
 

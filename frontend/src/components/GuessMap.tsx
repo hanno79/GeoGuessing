@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   MapContainer,
   TileLayer,
   Marker,
-  Polyline,
   useMapEvents,
   useMap,
 } from 'react-leaflet';
@@ -62,6 +61,60 @@ function FlyTo({ lat, lng, zoom }: { lat: number; lng: number; zoom: number }) {
   return null;
 }
 
+// Animated polyline that "grows" from point A to B
+function AnimatedPolyline({
+  from,
+  to,
+  duration = 1500,
+  onComplete,
+}: {
+  from: [number, number];
+  to: [number, number];
+  duration?: number;
+  onComplete?: () => void;
+}) {
+  const map = useMap();
+  const polyRef = useRef<L.Polyline | null>(null);
+  const done = useRef(false);
+
+  const completeRef = useRef(onComplete);
+  completeRef.current = onComplete;
+
+  useEffect(() => {
+    done.current = false;
+    const line = L.polyline([from, from], {
+      color: '#388bfd',
+      weight: 2.5,
+      dashArray: '6 4',
+      opacity: 0.85,
+    }).addTo(map);
+    polyRef.current = line;
+
+    const startTime = performance.now();
+
+    function animate(now: number) {
+      const t = Math.min((now - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      const lat = from[0] + (to[0] - from[0]) * eased;
+      const lng = from[1] + (to[1] - from[1]) * eased;
+      line.setLatLngs([from, [lat, lng]]);
+      if (t < 1) {
+        requestAnimationFrame(animate);
+      } else if (!done.current) {
+        done.current = true;
+        completeRef.current?.();
+      }
+    }
+    requestAnimationFrame(animate);
+
+    return () => {
+      map.removeLayer(line);
+    };
+  }, [map, from, to, duration]);
+
+  return null;
+}
+
 interface Props {
   guess: LatLng | null;
   target: LatLng | null;       // shown only in result phase
@@ -73,20 +126,25 @@ interface Props {
 
 export default function GuessMap({ guess, target, interactive, showResult, onGuess, hideLabels = false }: Props) {
   const [tileError, setTileError] = useState(false);
+  const [lineAnimDone, setLineAnimDone] = useState(false);
   const errorCount = useRef(0);
+
+  // Reset animation state when transitioning away from result
+  useEffect(() => {
+    if (!showResult) setLineAnimDone(false);
+  }, [showResult]);
 
   function handleTileError() {
     errorCount.current += 1;
     if (errorCount.current >= 3) setTileError(true);
   }
 
-  const polyLine =
-    showResult && guess && target
-      ? ([
-          [guess.latitude, guess.longitude],
-          [target.latitude, target.longitude],
-        ] as [number, number][])
-      : null;
+  const handleLineComplete = useCallback(() => setLineAnimDone(true), []);
+
+  const from: [number, number] | null =
+    showResult && guess ? [guess.latitude, guess.longitude] : null;
+  const to: [number, number] | null =
+    showResult && target ? [target.latitude, target.longitude] : null;
 
   return (
     <>
@@ -122,14 +180,16 @@ export default function GuessMap({ guess, target, interactive, showResult, onGue
           />
         )}
 
-        {polyLine && (
-          <Polyline
-            positions={polyLine}
-            pathOptions={{ color: '#388bfd', weight: 2.5, dashArray: '6 4', opacity: 0.85 }}
+        {from && to && (
+          <AnimatedPolyline
+            from={from}
+            to={to}
+            duration={1500}
+            onComplete={handleLineComplete}
           />
         )}
 
-        {showResult && target && (
+        {showResult && target && lineAnimDone && (
           <FlyTo lat={target.latitude} lng={target.longitude} zoom={3} />
         )}
       </MapContainer>

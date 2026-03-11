@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
 import type { LatLng } from '../types';
-import { ZEN_TIME_BONUS_WINDOW } from '../types';
+import { ZEN_TIME_BONUS_WINDOW, STREAK_THRESHOLD, DIFFICULTY_TIMER } from '../types';
 import { haversineDistance } from '../utils/haversine';
 import { calculateScore, calculateZenDistanceScore, calculateTimeBonus, formatDistance, formatScore, formatTime } from '../utils/scoreCalculator';
 import CountdownTimer from './CountdownTimer';
@@ -10,6 +10,7 @@ import ElapsedTimer from './ElapsedTimer';
 import ImageryMap from './ImageryMap';
 import GuessMap from './GuessMap';
 import CityNameDisplay from './CityNameDisplay';
+import { playSound, soundForDistance } from '../utils/soundManager';
 
 type Phase = 'loading' | 'playing' | 'result' | 'error';
 
@@ -26,16 +27,21 @@ export default function GameRound() {
   const [elapsedSec, setElapsedSec] = useState<number>(0);
   const [cityName, setCityName] = useState<string | null>(null);
   const [countryName, setCountryName] = useState<string | null>(null);
+  const [streakBusted, setStreakBusted] = useState(false);
 
   const timedOut = useRef(false);
   const roundStartTime = useRef<number>(Date.now());
   const isZen = state.gameMode === 'Zen';
+  const isDaily = state.gameMode === 'Daily';
+  const isStreak = state.gameMode === 'Streak';
   const isCityHunt = state.gameCategory === 'CityHunt';
+  const showTimer = !isZen && (state.gameMode === 'Classic' || isDaily || isStreak);
 
   // Load a new location when the round index changes
   useEffect(() => {
     let cancelled = false;
     timedOut.current = false;
+    setStreakBusted(false);
     setPhase('loading');
     setTarget(null);
     setGuess(null);
@@ -45,30 +51,45 @@ export default function GameRound() {
     setCityName(null);
     setCountryName(null);
 
-    const usedTargets = state.rounds
-      .filter((r) => r.targetLocation)
-      .map((r) =>
-        isCityHunt
-          ? r.cityName
-          : `${r.targetLocation!.latitude},${r.targetLocation!.longitude}`,
-      );
+    let url: string;
 
-    const params = new URLSearchParams();
-    if (isCityHunt) params.set('difficulty', state.difficulty);
-    if (usedTargets.length > 0) params.set('exclude', JSON.stringify(usedTargets));
+    if (isDaily) {
+      // Daily Challenge: fetch deterministic location
+      const date = state.dailyDate || new Date().toISOString().slice(0, 10);
+      const params = new URLSearchParams({
+        date,
+        round: String(state.currentRoundIndex),
+        category: state.gameCategory,
+      });
+      url = `/api/daily?${params}`;
+    } else {
+      const usedTargets = state.rounds
+        .filter((r) => r.targetLocation)
+        .map((r) =>
+          isCityHunt
+            ? r.cityName
+            : `${r.targetLocation!.latitude},${r.targetLocation!.longitude}`,
+        );
 
-    const url = isCityHunt ? `/api/city?${params}` : `/api/location?${params}`;
+      const params = new URLSearchParams();
+      if (isCityHunt) params.set('difficulty', state.difficulty);
+      if (usedTargets.length > 0) params.set('exclude', JSON.stringify(usedTargets));
+
+      url = isCityHunt ? `/api/city?${params}` : `/api/location?${params}`;
+    }
+
     fetch(url)
       .then((r) => r.json())
       .then((data) => {
         if (!cancelled) {
           setTarget({ latitude: data.latitude, longitude: data.longitude });
-          if (isCityHunt) {
-            setCityName(data.city);
+          if (isCityHunt || isDaily) {
+            setCityName(data.city ?? null);
             setCountryName(data.country ?? null);
           }
           setPhase('playing');
           roundStartTime.current = Date.now();
+          playSound('start');
         }
       })
       .catch(() => {
@@ -95,6 +116,7 @@ export default function GameRound() {
       setTimeBonus(bonus);
       setElapsedSec(Math.floor(elapsed));
       setPhase('result');
+      playSound(soundForDistance(dist));
 
       dispatch({
         type: 'SUBMIT_GUESS',
@@ -106,8 +128,13 @@ export default function GameRound() {
         cityName: cityName ?? undefined,
         countryName: countryName ?? undefined,
       });
+
+      // Streak mode: check if bust
+      if (isStreak && dist > STREAK_THRESHOLD[state.difficulty]) {
+        setStreakBusted(true);
+      }
     },
-    [phase, target, dispatch, isZen, state.difficulty]
+    [phase, target, dispatch, isZen, isStreak, state.difficulty, cityName, countryName]
   );
 
   const handleTimeout = useCallback(() => {
@@ -117,19 +144,33 @@ export default function GameRound() {
     setDistKm(null);
     setRoundScore(0);
     setPhase('result');
+    playSound('timeout');
     dispatch({ type: 'TIMEOUT', targetLocation: target, timeTakenSeconds: elapsed });
-  }, [phase, target, dispatch]);
+
+    // Streak: timeout = game over
+    if (isStreak) {
+      setStreakBusted(true);
+    }
+  }, [phase, target, dispatch, isStreak]);
 
   const handleNext = () => {
-    const isLast = state.currentRoundIndex + 1 >= state.roundsCount;
+    if (streakBusted) {
+      dispatch({ type: 'STREAK_FAIL' });
+      navigate('/summary');
+      return;
+    }
+    const isLast = !isStreak && state.currentRoundIndex + 1 >= state.roundsCount;
     dispatch({ type: 'NEXT_ROUND' });
     if (isLast) {
       navigate('/summary');
     }
-    // phase reset happens via useEffect on currentRoundIndex change
   };
 
   const roundNum = state.currentRoundIndex + 1;
+  const streakCount = state.rounds.filter((r) => !r.timedOut && r.distanceKm !== null && r.distanceKm <= STREAK_THRESHOLD[state.difficulty]).length;
+
+  // For Daily mode, determine the effective difficulty for imagery
+  const effectiveDifficulty = isDaily ? 'Medium' as const : state.difficulty;
 
   return (
     <div className="game-round">
@@ -138,7 +179,9 @@ export default function GameRound() {
         {/* Left: imagery or city name */}
         <div className="map-pane">
           <div className="map-label" aria-hidden="true">
-            {isCityHunt ? '🏙 Welche Stadt?' : '📷 Satellitenansicht'}
+            {isCityHunt || (isDaily && state.gameCategory === 'CityHunt')
+              ? '🏙 Welche Stadt?'
+              : '📷 Satellitenansicht'}
           </div>
           {phase === 'loading' && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}>
@@ -151,13 +194,13 @@ export default function GameRound() {
             </div>
           )}
           {target && (phase === 'playing' || phase === 'result') && (
-            isCityHunt ? (
+            isCityHunt || (isDaily && state.gameCategory === 'CityHunt') ? (
               <CityNameDisplay city={cityName ?? ''} country={countryName} />
             ) : (
               <ImageryMap
                 latitude={target.latitude}
                 longitude={target.longitude}
-                difficulty={state.difficulty}
+                difficulty={effectiveDifficulty}
               />
             )
           )}
@@ -172,13 +215,24 @@ export default function GameRound() {
             interactive={phase === 'playing'}
             showResult={phase === 'result'}
             onGuess={handleGuess}
-            hideLabels={isCityHunt}
+            hideLabels={isCityHunt || (isDaily && state.gameCategory === 'CityHunt')}
           />
 
           {/* Result overlay */}
           {phase === 'result' && (
             <div className="result-overlay">
-              {guess ? (
+              {streakBusted ? (
+                <>
+                  <h3 style={{ color: 'var(--danger)' }}>Game Over!</h3>
+                  <div className="result-distance">{formatDistance(distKm ?? 0)}</div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                    Threshold: {STREAK_THRESHOLD[state.difficulty]} km
+                  </div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--accent-glow)', marginTop: '0.5rem' }}>
+                    🔥 Streak: {streakCount}
+                  </div>
+                </>
+              ) : guess ? (
                 <>
                   <h3>Deine Distanz</h3>
                   <div className="result-distance">{formatDistance(distKm ?? 0)}</div>
@@ -189,8 +243,13 @@ export default function GameRound() {
                 </>
               ) : (
                 <>
-                  <h3>Zeit abgelaufen!</h3>
+                  <h3>{isStreak ? 'Game Over!' : 'Zeit abgelaufen!'}</h3>
                   <div className="result-timeout">⏱ Kein Tipp — 0 Punkte</div>
+                  {isStreak && (
+                    <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--accent-glow)', marginTop: '0.5rem' }}>
+                      🔥 Streak: {streakCount}
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -201,10 +260,23 @@ export default function GameRound() {
       {/* ── Footer ── */}
       <footer className="game-footer">
         <div className="game-info">
-          <div className="game-info-item">
-            <span>Runde</span>
-            <span>{roundNum} / {state.roundsCount}</span>
-          </div>
+          {isStreak ? (
+            <>
+              <div className="game-info-item">
+                <span>Streak</span>
+                <span>🔥 {streakCount}</span>
+              </div>
+              <div className="game-info-item">
+                <span>Runde</span>
+                <span>{roundNum}</span>
+              </div>
+            </>
+          ) : (
+            <div className="game-info-item">
+              <span>Runde</span>
+              <span>{roundNum} / {state.roundsCount}</span>
+            </div>
+          )}
           <div className="game-info-item">
             <span>Punkte</span>
             <span>{formatScore(totalScore)}</span>
@@ -217,11 +289,17 @@ export default function GameRound() {
             <span>Schwierigkeit</span>
             <span>{state.difficulty}</span>
           </div>
+          {isStreak && (
+            <div className="game-info-item">
+              <span>Max. km</span>
+              <span>{STREAK_THRESHOLD[state.difficulty]}</span>
+            </div>
+          )}
         </div>
 
-        {phase === 'playing' && target && !isZen && (
+        {phase === 'playing' && target && showTimer && (
           <CountdownTimer
-            difficulty={state.difficulty}
+            difficulty={isDaily ? 'Medium' : state.difficulty}
             running={phase === 'playing'}
             onTimeout={handleTimeout}
           />
@@ -240,14 +318,18 @@ export default function GameRound() {
               Gesamt: <strong>{formatScore(totalScore)}</strong>
             </span>
             <button className="btn btn-primary" onClick={handleNext} type="button" autoFocus>
-              {roundNum >= state.roundsCount ? '🏁 Ergebnis anzeigen' : '▶ Nächste Runde'}
+              {streakBusted
+                ? '🏁 Ergebnis anzeigen'
+                : !isStreak && roundNum >= state.roundsCount
+                ? '🏁 Ergebnis anzeigen'
+                : '▶ Nächste Runde'}
             </button>
           </div>
         )}
 
         <div className="attribution">
           Karte: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap</a>
-          {!isCityHunt && (
+          {!isCityHunt && !(isDaily && state.gameCategory === 'CityHunt') && (
             <>&nbsp;|&nbsp;Satellit: <a href="https://www.esri.com" target="_blank" rel="noopener noreferrer">© Esri</a></>
           )}
         </div>

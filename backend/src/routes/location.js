@@ -129,4 +129,69 @@ router.get('/city', (req, res) => {
   res.json(result);
 });
 
+// ── Seeded PRNG for Daily Challenge ─────────────────────────────────────────
+
+function mulberry32(seed) {
+  return function () {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function dateToSeed(dateStr) {
+  return parseInt(dateStr.replace(/-/g, ''), 10);
+}
+
+// Deterministically pick `count` items from an array using a seeded PRNG
+function seededPick(arr, seed, count) {
+  const rng = mulberry32(seed);
+  const copy = [...arr];
+  const result = [];
+  for (let i = 0; i < count && copy.length > 0; i++) {
+    const idx = Math.floor(rng() * copy.length);
+    result.push(copy.splice(idx, 1)[0]);
+  }
+  return result;
+}
+
+// GET /api/daily?date=YYYY-MM-DD&round=0..4&category=SkyView|CityHunt
+router.get('/daily', (req, res) => {
+  const { date, round, category } = req.query;
+
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return res.status(400).json({ error: 'date must be in YYYY-MM-DD format.' });
+  }
+
+  const roundIdx = parseInt(round, 10);
+  if (isNaN(roundIdx) || roundIdx < 0 || roundIdx > 4) {
+    return res.status(400).json({ error: 'round must be 0-4.' });
+  }
+
+  const seed = dateToSeed(date) + (category === 'CityHunt' ? 99999 : 0);
+
+  if (category === 'CityHunt') {
+    const allCities = loadCities();
+    const pool = allCities.filter((c) => ['easy', 'medium'].includes(c.difficulty));
+    const selected = pool.length > 0 ? pool : allCities;
+    const dailyCities = seededPick(selected, seed, 5);
+    const city = dailyCities[roundIdx];
+    if (!city) return res.status(404).json({ error: 'No city available.' });
+    res.json({
+      city: city.city,
+      latitude: city.latitude,
+      longitude: city.longitude,
+      country: city.country || undefined,
+    });
+  } else {
+    const locs = loadLocations();
+    const dailyLocs = seededPick(locs, seed, 5);
+    const loc = dailyLocs[roundIdx];
+    if (!loc) return res.status(404).json({ error: 'No location available.' });
+    res.json({ latitude: loc.latitude, longitude: loc.longitude });
+  }
+});
+
 module.exports = router;

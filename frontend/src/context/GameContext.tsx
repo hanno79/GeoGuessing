@@ -22,6 +22,7 @@ type Action =
   | { type: 'TIMEOUT'; targetLocation: LatLng; timeTakenSeconds?: number }
   | { type: 'NEXT_ROUND' }
   | { type: 'END_GAME' }
+  | { type: 'STREAK_FAIL' }
   | { type: 'RESET' };
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
@@ -65,7 +66,8 @@ function gameReducer(state: GameState, action: Action): GameState {
 
     case 'NEXT_ROUND': {
       const nextIndex = state.currentRoundIndex + 1;
-      if (nextIndex >= state.roundsCount) {
+      // For Streak mode: no fixed end — always continue
+      if (state.gameMode !== 'Streak' && nextIndex >= state.roundsCount) {
         return { ...state, currentRoundIndex: nextIndex, phase: 'summary' };
       }
       return { ...state, currentRoundIndex: nextIndex, phase: 'playing' };
@@ -73,6 +75,9 @@ function gameReducer(state: GameState, action: Action): GameState {
 
     case 'END_GAME':
       return { ...state, phase: 'summary' };
+
+    case 'STREAK_FAIL':
+      return { ...state, phase: 'summary', streakFailed: true };
 
     case 'RESET':
       return initialState;

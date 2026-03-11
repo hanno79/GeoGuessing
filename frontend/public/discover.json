@@ -1,6 +1,20 @@
 {
   "changelog": [
     {
+      "version": "1.3.0",
+      "date": "2026-03-11",
+      "title": "Daily Challenge, Streak Mode & Game-Feel",
+      "entries": [
+        "Tägliche Challenge: Jeden Tag 5 gleiche Orte für alle Spieler — nur ein Versuch!",
+        "Streak Modus: Endlosmodus — rate so lange richtig wie möglich, ein Fehler beendet das Spiel",
+        "Animierte Ergebnislinie: Die Distanzlinie wächst animiert vom Tipp zum Ziel",
+        "Sound-Effekte: Akustisches Feedback für Treffer, Fehlschüsse und Timer-Warnung (Web Audio API)",
+        "Sound-Toggle im Header — standardmässig stumm geschaltet",
+        "252 SkyView-Standorte und 257 CityHunt-Städte für noch mehr Abwechslung",
+        "Streak-Schwellenwerte: Easy ≤500km, Medium ≤300km, Hard ≤150km"
+      ]
+    },
+    {
       "version": "1.2.1",
       "date": "2026-03-10",
       "title": "Scoring-Balance & Zeitmessung",

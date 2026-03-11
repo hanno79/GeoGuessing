@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
 import type { Difficulty, RoundsCount, GameMode, GameCategory } from '../types';
-import { DIFFICULTY_TIMER, ZEN_TIME_BONUS_WINDOW } from '../types';
+import { DIFFICULTY_TIMER, ZEN_TIME_BONUS_WINDOW, STREAK_THRESHOLD } from '../types';
 
 const DIFFICULTY_DESC_CLASSIC: Record<Difficulty, string> = {
   Easy:   '60 s · Weite Ansicht — Landschaften erkennbar',
@@ -28,6 +28,10 @@ const CITY_DIFFICULTY_DESC_ZEN: Record<Difficulty, string> = {
   Hard:   'Nur Stadtname — Auch weniger bekannte Städte',
 };
 
+function todayDateStr(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export default function Home() {
   const { dispatch } = useGame();
   const navigate = useNavigate();
@@ -38,6 +42,8 @@ export default function Home() {
   const [roundsCount, setRoundsCount] = useState<RoundsCount>(5);
   const [gameMode, setGameMode] = useState<GameMode>('Classic');
   const [gameCategory, setGameCategory] = useState<GameCategory>('SkyView');
+  const [dailyCategory, setDailyCategory] = useState<GameCategory>('SkyView');
+  const [showDailyDialog, setShowDailyDialog] = useState(false);
 
   const NAME_REGEX = /^[a-zA-Z0-9\-_]+$/;
 
@@ -52,8 +58,49 @@ export default function Home() {
   function handleStart() {
     const err = validateName(playerName);
     if (err) { setNameError(err); return; }
-    dispatch({ type: 'START_GAME', config: { playerName: playerName.trim(), difficulty, roundsCount, gameMode, gameCategory } });
+    dispatch({
+      type: 'START_GAME',
+      config: {
+        playerName: playerName.trim(),
+        difficulty,
+        roundsCount: gameMode === 'Streak' ? 999 : roundsCount,
+        gameMode,
+        gameCategory,
+      },
+    });
     navigate('/game');
+  }
+
+  function handleDailyStart() {
+    const err = validateName(playerName);
+    if (err) { setNameError(err); return; }
+    dispatch({
+      type: 'START_GAME',
+      config: {
+        playerName: playerName.trim(),
+        difficulty: 'Medium',
+        roundsCount: 5,
+        gameMode: 'Daily',
+        gameCategory: dailyCategory,
+        dailyDate: todayDateStr(),
+      },
+    });
+    setShowDailyDialog(false);
+    navigate('/game');
+  }
+
+  const isStreak = gameMode === 'Streak';
+
+  function getDifficultyHint(): string {
+    if (isStreak) {
+      const threshold = STREAK_THRESHOLD[difficulty];
+      const timer = DIFFICULTY_TIMER[difficulty];
+      return `${timer} s · Max. ${threshold} km Abweichung`;
+    }
+    if (gameCategory === 'SkyView') {
+      return gameMode === 'Classic' ? DIFFICULTY_DESC_CLASSIC[difficulty] : DIFFICULTY_DESC_ZEN[difficulty];
+    }
+    return gameMode === 'Classic' ? CITY_DIFFICULTY_DESC_CLASSIC[difficulty] : CITY_DIFFICULTY_DESC_ZEN[difficulty];
   }
 
   return (
@@ -65,6 +112,43 @@ export default function Home() {
             ? 'Erkenne den Ort auf dem Satellitenbild und markiere ihn auf der Weltkarte.'
             : 'Finde die Stadt auf der Weltkarte — nur anhand des Namens!'}
         </p>
+      </div>
+
+      {/* Daily Challenge Card */}
+      <div className="card daily-card" style={{ textAlign: 'center', border: '1px solid var(--accent)', background: 'rgba(31,111,235,0.06)' }}>
+        <div style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+          📅 Tägliche Challenge
+        </div>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
+          Jeden Tag 5 gleiche Orte für alle Spieler. Nur ein Versuch!
+        </p>
+        {!showDailyDialog ? (
+          <button className="btn btn-primary" onClick={() => setShowDailyDialog(true)} type="button">
+            Heute spielen
+          </button>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
+            <div className="option-group" style={{ justifyContent: 'center' }}>
+              <button
+                className={`option-btn ${dailyCategory === 'SkyView' ? 'selected' : ''}`}
+                onClick={() => setDailyCategory('SkyView')}
+                type="button"
+              >
+                🛰 SkyView
+              </button>
+              <button
+                className={`option-btn ${dailyCategory === 'CityHunt' ? 'selected' : ''}`}
+                onClick={() => setDailyCategory('CityHunt')}
+                type="button"
+              >
+                🏙 CityHunt
+              </button>
+            </div>
+            <button className="btn btn-success" onClick={handleDailyStart} type="button">
+              📅 Challenge starten
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="card">
@@ -133,11 +217,21 @@ export default function Home() {
             >
               🧘 Zen
             </button>
+            <button
+              className={`option-btn ${gameMode === 'Streak' ? 'selected' : ''}`}
+              onClick={() => setGameMode('Streak')}
+              aria-pressed={gameMode === 'Streak'}
+              type="button"
+            >
+              🔥 Streak
+            </button>
           </div>
           <span className="difficulty-hint">
             {gameMode === 'Classic'
               ? 'Mit Timer — Zeit läuft ab, dann 0 Punkte'
-              : `Ohne Timer — Schnelligkeit gibt bis zu 1.000 Bonuspunkte (${ZEN_TIME_BONUS_WINDOW[difficulty]}s Fenster)`}
+              : gameMode === 'Zen'
+              ? `Ohne Timer — Schnelligkeit gibt bis zu 1.000 Bonuspunkte (${ZEN_TIME_BONUS_WINDOW[difficulty]}s Fenster)`
+              : `Endlosmodus — Ein Fehler und es ist vorbei! Max. ${STREAK_THRESHOLD[difficulty]} km Abweichung`}
           </span>
         </div>
 
@@ -157,30 +251,28 @@ export default function Home() {
               </button>
             ))}
           </div>
-          <span className="difficulty-hint">
-            {gameCategory === 'SkyView'
-              ? (gameMode === 'Classic' ? DIFFICULTY_DESC_CLASSIC[difficulty] : DIFFICULTY_DESC_ZEN[difficulty])
-              : (gameMode === 'Classic' ? CITY_DIFFICULTY_DESC_CLASSIC[difficulty] : CITY_DIFFICULTY_DESC_ZEN[difficulty])}
-          </span>
+          <span className="difficulty-hint">{getDifficultyHint()}</span>
         </div>
 
-        {/* Rounds */}
-        <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-          <label>Rundenanzahl</label>
-          <div className="option-group" role="group" aria-label="Rundenanzahl">
-            {([3, 5, 7] as RoundsCount[]).map((r) => (
-              <button
-                key={r}
-                className={`option-btn ${roundsCount === r ? 'selected' : ''}`}
-                onClick={() => setRoundsCount(r)}
-                aria-pressed={roundsCount === r}
-                type="button"
-              >
-                {r} Runden
-              </button>
-            ))}
+        {/* Rounds (hidden for Streak) */}
+        {!isStreak && (
+          <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+            <label>Rundenanzahl</label>
+            <div className="option-group" role="group" aria-label="Rundenanzahl">
+              {([3, 5, 7] as RoundsCount[]).map((r) => (
+                <button
+                  key={r}
+                  className={`option-btn ${roundsCount === r ? 'selected' : ''}`}
+                  onClick={() => setRoundsCount(r)}
+                  aria-pressed={roundsCount === r}
+                  type="button"
+                >
+                  {r} Runden
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         <button className="btn btn-primary btn-full btn-lg" onClick={handleStart} type="button">
           🚀 Spiel starten
@@ -189,10 +281,12 @@ export default function Home() {
 
       <div className="card" style={{ textAlign: 'center', padding: '1rem' }}>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-          {gameMode === 'Classic' ? (
+          {isStreak ? (
+            <>Endlosmodus · Max. <strong>{STREAK_THRESHOLD[difficulty]} km</strong> Abweichung · Timer: <strong>{DIFFICULTY_TIMER[difficulty]} s</strong></>
+          ) : gameMode === 'Classic' ? (
             <>Zeitlimit: <strong>{DIFFICULTY_TIMER[difficulty]} s</strong> pro Runde · {roundsCount} Runden · Max. <strong>{(roundsCount * 5000).toLocaleString('de-DE')}</strong> Punkte</>
           ) : (
-            <>Kein Zeitlimit · {roundsCount} Runden · Max. <strong>{(roundsCount * 6000).toLocaleString('de-DE')}</strong> Punkte</>
+            <>Kein Zeitlimit · {roundsCount} Runden · Max. <strong>{(roundsCount * 5000).toLocaleString('de-DE')}</strong> Punkte</>
           )}
         </p>
       </div>

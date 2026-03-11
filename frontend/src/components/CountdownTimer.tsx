@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Difficulty } from '../types';
 import { DIFFICULTY_TIMER } from '../types';
+import { playSound } from '../utils/soundManager';
 
 interface Props {
   difficulty: Difficulty;
@@ -32,7 +33,9 @@ export default function CountdownTimer({ difficulty, running, onTimeout }: Props
           }
           return 0;
         }
-        return prev - 1;
+        const next = prev - 1;
+        if (next <= 5 && next > 0) playSound('tick');
+        return next;
       });
     }, 1000);
 

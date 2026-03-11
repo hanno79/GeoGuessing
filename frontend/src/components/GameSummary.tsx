@@ -1,9 +1,39 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
+import { STREAK_THRESHOLD } from '../types';
 import { formatDistance, formatScore, formatTime } from '../utils/scoreCalculator';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error' | 'duplicate';
+
+function DailyCountdown() {
+  const [timeLeft, setTimeLeft] = useState('');
+
+  useEffect(() => {
+    function update() {
+      const now = new Date();
+      const tomorrow = new Date(now);
+      tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+      tomorrow.setUTCHours(0, 0, 0, 0);
+      const diff = tomorrow.getTime() - now.getTime();
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTimeLeft(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`);
+    }
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <div className="card" style={{ textAlign: 'center' }}>
+      <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+        📅 Nächste Challenge in: <strong style={{ color: 'var(--accent-glow)' }}>{timeLeft}</strong>
+      </p>
+    </div>
+  );
+}
 
 export default function GameSummary() {
   const { state, dispatch, totalScore, avgDistance } = useGame();
@@ -12,6 +42,13 @@ export default function GameSummary() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState('');
 
+  const isDaily = state.gameMode === 'Daily';
+  const isStreak = state.gameMode === 'Streak';
+  const actualRounds = state.rounds.length;
+  const streakCount = isStreak
+    ? state.rounds.filter((r) => !r.timedOut && r.distanceKm !== null && r.distanceKm <= STREAK_THRESHOLD[state.difficulty]).length
+    : 0;
+
   const bestRound = [...state.rounds].sort((a, b) => b.score - a.score)[0];
   const totalTimeTaken = state.rounds.reduce((sum, r) => sum + (r.timeTakenSeconds ?? 0), 0);
 
@@ -19,16 +56,20 @@ export default function GameSummary() {
     setSaveStatus('saving');
     setSaveError('');
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       name: state.playerName,
       totalScore,
       difficulty: state.difficulty,
-      roundsCount: state.roundsCount,
+      roundsCount: isStreak ? actualRounds : state.roundsCount,
       avgDistanceKm: avgDistance,
       gameMode: state.gameMode,
       gameCategory: state.gameCategory,
       totalTimeTakenSeconds: totalTimeTaken,
     };
+
+    if (isDaily && state.dailyDate) {
+      payload.dailyDate = state.dailyDate;
+    }
 
     try {
       const res = await fetch('/api/score', {
@@ -57,19 +98,30 @@ export default function GameSummary() {
     navigate('/');
   }
 
+  const modeLabel = isDaily ? '📅 Daily' : isStreak ? '🔥 Streak' : state.gameMode;
+  const displayRounds = isStreak ? actualRounds : state.roundsCount;
+
   return (
     <div className="summary">
       {/* Header */}
       <div className="summary-header card">
-        <h1>🏁 Spielergebnis</h1>
+        <h1>{isStreak && state.streakFailed ? '💥 Game Over' : '🏁 Spielergebnis'}</h1>
         <div className="summary-total-score">{formatScore(totalScore)}</div>
         <div className="summary-subtitle">
-          {state.playerName} · {state.gameCategory === 'CityHunt' ? '🏙 CityHunt' : '🛰 SkyView'} · {state.gameMode} · {state.difficulty} · {state.roundsCount} Runden
+          {state.playerName} · {state.gameCategory === 'CityHunt' ? '🏙 CityHunt' : '🛰 SkyView'} · {modeLabel} · {state.difficulty} · {displayRounds} Runden
         </div>
       </div>
 
       {/* Stats */}
       <div className="summary-stats">
+        {isStreak && (
+          <div className="stat-card">
+            <div className="stat-label">Streak</div>
+            <div className="stat-value" style={{ color: 'var(--warning)' }}>
+              🔥 {streakCount}
+            </div>
+          </div>
+        )}
         <div className="stat-card">
           <div className="stat-label">Gesamtscore</div>
           <div className="stat-value" style={{ color: 'var(--accent-glow)' }}>
@@ -95,6 +147,9 @@ export default function GameSummary() {
           </div>
         </div>
       </div>
+
+      {/* Daily countdown */}
+      {isDaily && <DailyCountdown />}
 
       {/* Round breakdown */}
       <div className="card">
@@ -130,7 +185,9 @@ export default function GameSummary() {
         {saveStatus === 'saved' ? (
           <p className="save-status success">✅ Dein Score wurde gespeichert!</p>
         ) : saveStatus === 'duplicate' ? (
-          <p className="save-status error">⚠️ Dieser Score ist bereits gespeichert.</p>
+          <p className="save-status error">
+            {isDaily ? '⚠️ Du hast die heutige Challenge bereits gespielt.' : '⚠️ Dieser Score ist bereits gespeichert.'}
+          </p>
         ) : (
           <>
             <div className="save-row">

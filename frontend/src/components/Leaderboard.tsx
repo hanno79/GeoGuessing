@@ -130,6 +130,8 @@ export default function Leaderboard() {
             <option value="">Alle</option>
             <option value="Classic">Classic</option>
             <option value="Zen">Zen</option>
+            <option value="Daily">📅 Daily</option>
+            <option value="Streak">🔥 Streak</option>
           </select>
         </div>
 

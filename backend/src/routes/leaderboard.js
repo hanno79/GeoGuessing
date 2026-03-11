@@ -62,8 +62,18 @@ router.post('/score', (req, res) => {
       return res.status(400).json({ error: 'Ungültige Daten.', details: validation.errors });
     }
 
-    const { totalScore, difficulty, roundsCount, avgDistanceKm, gameMode, gameCategory, totalTimeTakenSeconds } = req.body;
+    const { totalScore, difficulty, roundsCount, avgDistanceKm, gameMode, gameCategory, totalTimeTakenSeconds, dailyDate } = req.body;
     const name = validation.name;
+
+    // Daily Challenge: only one attempt per player per day per category
+    if (gameMode === 'Daily' && dailyDate) {
+      const dailyExisting = db
+        .prepare('SELECT id FROM leaderboard WHERE name = ? AND gameMode = ? AND dailyDate = ? AND gameCategory = ?')
+        .get(name, 'Daily', dailyDate, gameCategory);
+      if (dailyExisting) {
+        return res.status(409).json({ error: 'Du hast die heutige Challenge bereits gespielt.' });
+      }
+    }
 
     // Check for duplicate entry
     const existing = db
@@ -77,9 +87,9 @@ router.post('/score', (req, res) => {
     }
 
     const stmt = db.prepare(
-      'INSERT INTO leaderboard (name, totalScore, difficulty, roundsCount, avgDistanceKm, gameMode, gameCategory, totalTimeTakenSeconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO leaderboard (name, totalScore, difficulty, roundsCount, avgDistanceKm, gameMode, gameCategory, totalTimeTakenSeconds, dailyDate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
     );
-    const result = stmt.run(name, totalScore, difficulty, roundsCount, avgDistanceKm ?? null, gameMode, gameCategory, totalTimeTakenSeconds ?? null);
+    const result = stmt.run(name, totalScore, difficulty, roundsCount, avgDistanceKm ?? null, gameMode, gameCategory, totalTimeTakenSeconds ?? null, dailyDate ?? null);
 
     const newEntry = db.prepare('SELECT * FROM leaderboard WHERE id = ?').get(result.lastInsertRowid);
     res.status(201).json(newEntry);
