@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import type { LeaderboardEntry, Difficulty, GameMode, GameCategory } from '../types';
 import { formatDistance, formatScore, formatTime } from '../utils/scoreCalculator';
 
@@ -16,14 +17,15 @@ function formatDate(ts: string) {
 }
 
 export default function Leaderboard() {
+  const [searchParams] = useSearchParams();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const [difficulty, setDifficulty] = useState<Difficulty | ''>('');
-  const [rounds, setRounds] = useState('');
-  const [gameMode, setGameMode] = useState<GameMode | ''>('');
-  const [gameCategory, setGameCategory] = useState<GameCategory | ''>('');
+  const [difficulty, setDifficulty] = useState<Difficulty | ''>((searchParams.get('difficulty') as Difficulty) || '');
+  const [rounds, setRounds] = useState(searchParams.get('roundsCount') || '');
+  const [gameMode, setGameMode] = useState<GameMode | ''>((searchParams.get('gameMode') as GameMode) || '');
+  const [gameCategory, setGameCategory] = useState<GameCategory | ''>((searchParams.get('gameCategory') as GameCategory) || '');
   const [sort, setSort] = useState<SortKey>('scorePerRound');
   const [order, setOrder] = useState<SortDir>('desc');
 

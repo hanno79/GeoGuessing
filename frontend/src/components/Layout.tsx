@@ -25,8 +25,9 @@ export default function Layout() {
             <span aria-hidden="true">🏠</span> <span>Start</span>
           </NavLink>
           {state.phase !== 'setup' && (
-            <NavLink to="/game" aria-label="Spiel">
-              <span aria-hidden="true">🎮</span> <span>Spiel</span>
+            <NavLink to="/game" aria-label={state.gameMode === 'Daily' ? 'Tägliche Challenge' : 'Spiel'}>
+              <span aria-hidden="true">{state.gameMode === 'Daily' ? '📅' : '🎮'}</span>{' '}
+              <span>{state.gameMode === 'Daily' ? 'Tägliche Challenge' : 'Spiel'}</span>
             </NavLink>
           )}
           <NavLink to="/leaderboard" aria-label="Bestenliste">

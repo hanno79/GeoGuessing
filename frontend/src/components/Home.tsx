@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
-import type { Difficulty, RoundsCount, GameMode, GameCategory } from '../types';
+import type { Difficulty, RoundsCount, GameMode, GameCategory, LeaderboardEntry } from '../types';
 import { DIFFICULTY_TIMER, ZEN_TIME_BONUS_WINDOW, STREAK_THRESHOLD } from '../types';
+import { formatScore } from '../utils/scoreCalculator';
 
 const DIFFICULTY_DESC_CLASSIC: Record<Difficulty, string> = {
   Easy:   '60 s · Weite Ansicht — Landschaften erkennbar',
@@ -44,6 +45,21 @@ export default function Home() {
   const [gameCategory, setGameCategory] = useState<GameCategory>('SkyView');
   const [dailyCategory, setDailyCategory] = useState<GameCategory>('SkyView');
   const [showDailyDialog, setShowDailyDialog] = useState(false);
+  const [dailyLeaders, setDailyLeaders] = useState<Record<string, LeaderboardEntry | null>>({});
+  const [dailyPlayed, setDailyPlayed] = useState<Record<string, boolean>>({});
+
+  // Load daily leaders for both categories
+  useEffect(() => {
+    const today = todayDateStr();
+    for (const cat of ['SkyView', 'CityHunt'] as GameCategory[]) {
+      fetch(`/api/leaderboard?gameMode=Daily&dailyDate=${today}&gameCategory=${cat}&sort=totalScore&order=desc&limit=1`)
+        .then((r) => r.json())
+        .then((data: LeaderboardEntry[]) => {
+          setDailyLeaders((prev) => ({ ...prev, [cat]: data[0] ?? null }));
+        })
+        .catch(() => {});
+    }
+  }, []);
 
   const NAME_REGEX = /^[a-zA-Z0-9\-_]+$/;
 
@@ -71,18 +87,34 @@ export default function Home() {
     navigate('/game');
   }
 
-  function handleDailyStart() {
+  async function handleDailyStart() {
     const err = validateName(playerName);
     if (err) { setNameError(err); return; }
+
+    const name = playerName.trim();
+    const today = todayDateStr();
+
+    // Check if player already played this daily challenge
+    try {
+      const res = await fetch(`/api/daily/check?name=${encodeURIComponent(name)}&date=${today}&category=${dailyCategory}`);
+      const data = await res.json();
+      if (data.played) {
+        setDailyPlayed((prev) => ({ ...prev, [`${name}_${dailyCategory}`]: true }));
+        return;
+      }
+    } catch {
+      // If check fails, allow playing (backend will still enforce at save time)
+    }
+
     dispatch({
       type: 'START_GAME',
       config: {
-        playerName: playerName.trim(),
+        playerName: name,
         difficulty: 'Medium',
         roundsCount: 5,
         gameMode: 'Daily',
         gameCategory: dailyCategory,
-        dailyDate: todayDateStr(),
+        dailyDate: today,
       },
     });
     setShowDailyDialog(false);
@@ -144,11 +176,37 @@ export default function Home() {
                 🏙 CityHunt
               </button>
             </div>
-            <button className="btn btn-success" onClick={handleDailyStart} type="button">
-              📅 Challenge starten
-            </button>
+            {dailyPlayed[`${playerName.trim()}_${dailyCategory}`] ? (
+              <p style={{ color: 'var(--warning)', fontSize: '0.85rem', margin: 0 }}>
+                Du hast die heutige {dailyCategory} Challenge bereits gespielt.
+              </p>
+            ) : (
+              <button className="btn btn-success" onClick={handleDailyStart} type="button">
+                📅 Challenge starten
+              </button>
+            )}
           </div>
         )}
+
+        {/* Current leader */}
+        <div style={{ marginTop: '0.75rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+          {(() => {
+            const leader = dailyLeaders[dailyCategory];
+            if (leader === undefined) return null; // still loading
+            if (leader === null) return <span>Noch kein Ergebnis heute — sei der Erste!</span>;
+            return <span>🥇 <strong>{leader.name}</strong> — {formatScore(leader.totalScore)} Punkte</span>;
+          })()}
+        </div>
+
+        {/* Link to daily leaderboard */}
+        <button
+          className="btn btn-secondary"
+          style={{ marginTop: '0.5rem', fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
+          onClick={() => navigate('/leaderboard?gameMode=Daily')}
+          type="button"
+        >
+          📊 Alle Ergebnisse
+        </button>
       </div>
 
       <div className="card">

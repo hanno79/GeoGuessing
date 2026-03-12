@@ -37,6 +37,12 @@ router.get('/leaderboard', (req, res) => {
       params.push(gameCategory);
     }
 
+    const { dailyDate } = req.query;
+    if (dailyDate) {
+      query += ' AND dailyDate = ?';
+      params.push(dailyDate);
+    }
+
     query += ` ORDER BY ${sortCol} ${sortOrder}`;
     if (sortCol !== 'totalTimeTakenSeconds') query += ', totalTimeTakenSeconds ASC';
     if (sortCol !== 'avgDistanceKm') query += ', avgDistanceKm ASC';
@@ -95,6 +101,27 @@ router.post('/score', (req, res) => {
     res.status(201).json(newEntry);
   } catch (err) {
     console.error('POST /api/score error:', err.message);
+    res.status(500).json({ error: 'Datenbankfehler.' });
+  }
+});
+
+// GET /api/daily/check — check if a player already played today's daily
+router.get('/daily/check', (req, res) => {
+  try {
+    const db = getDb();
+    const { name, date, category } = req.query;
+
+    if (!name || !date) {
+      return res.status(400).json({ error: 'name and date are required.' });
+    }
+
+    const existing = db
+      .prepare('SELECT id FROM leaderboard WHERE name = ? AND gameMode = ? AND dailyDate = ? AND gameCategory = ?')
+      .get(name, 'Daily', date, category || 'SkyView');
+
+    res.json({ played: !!existing });
+  } catch (err) {
+    console.error('GET /api/daily/check error:', err.message);
     res.status(500).json({ error: 'Datenbankfehler.' });
   }
 });
