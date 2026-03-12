@@ -49,6 +49,7 @@ export default function GameSummary() {
     ? state.rounds.filter((r) => !r.timedOut && r.distanceKm !== null && r.distanceKm <= STREAK_THRESHOLD[state.difficulty]).length
     : 0;
 
+  const isCountryMode = state.gameCategory === 'FlagMode' || state.gameCategory === 'SilhouetteMode';
   const bestRound = [...state.rounds].sort((a, b) => b.score - a.score)[0];
   const totalTimeTaken = state.rounds.reduce((sum, r) => sum + (r.timeTakenSeconds ?? 0), 0);
 
@@ -108,7 +109,11 @@ export default function GameSummary() {
         <h1>{isStreak && state.streakFailed ? '💥 Game Over' : '🏁 Spielergebnis'}</h1>
         <div className="summary-total-score">{formatScore(totalScore)}</div>
         <div className="summary-subtitle">
-          {state.playerName} · {state.gameCategory === 'CityHunt' ? '🏙 CityHunt' : '🛰 SkyView'} · {modeLabel} · {state.difficulty} · {displayRounds} Runden
+          {state.playerName} · {
+            state.gameCategory === 'CityHunt' ? '🏙 CityHunt' :
+            state.gameCategory === 'FlagMode' ? '🏴 Flaggen' :
+            state.gameCategory === 'SilhouetteMode' ? '🗺 Silhouette' : '🛰 SkyView'
+          } · {modeLabel} · {state.difficulty} · {displayRounds} Runden
         </div>
       </div>
 
@@ -159,11 +164,13 @@ export default function GameSummary() {
             <div className="summary-round" key={r.roundNumber}>
               <div className="round-num">#{r.roundNumber}</div>
               <div className="round-location">
-                {r.cityName
-                  ? (r.countryName ? `${r.cityName}, ${r.countryName}` : r.cityName)
-                  : r.targetLocation
-                    ? `${r.targetLocation.latitude.toFixed(2)}°, ${r.targetLocation.longitude.toFixed(2)}°`
-                    : '—'}
+                {isCountryMode && r.countryName
+                  ? r.countryName
+                  : r.cityName
+                    ? (r.countryName ? `${r.cityName}, ${r.countryName}` : r.cityName)
+                    : r.targetLocation
+                      ? `${r.targetLocation.latitude.toFixed(2)}°, ${r.targetLocation.longitude.toFixed(2)}°`
+                      : '—'}
               </div>
               <div className="round-dist">
                 {r.distanceKm !== null ? formatDistance(r.distanceKm) : 'Kein Tipp'}

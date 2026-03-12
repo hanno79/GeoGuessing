@@ -100,11 +100,11 @@ export default function GameRound() {
       .then((data) => {
         if (!cancelled) {
           setTarget({ latitude: data.latitude, longitude: data.longitude });
-          if (isCityHunt || isDaily) {
+          if (isCityHunt) {
             setCityName(data.city ?? null);
             setCountryName(data.country ?? null);
           }
-          if (isCountryMode || (isDaily && (state.gameCategory === 'FlagMode' || state.gameCategory === 'SilhouetteMode'))) {
+          if (isCountryMode) {
             setCountryCode(data.countryCode ?? null);
             setCountryName(data.country ?? null);
             setContinent(data.continent ?? null);
@@ -202,11 +202,11 @@ export default function GameRound() {
         {/* Left: imagery or city name */}
         <div className="map-pane">
           <div className="map-label" aria-hidden="true">
-            {isCityHunt || (isDaily && state.gameCategory === 'CityHunt')
+            {isCityHunt
               ? '🏙 Welche Stadt?'
-              : isFlagMode || (isDaily && state.gameCategory === 'FlagMode')
+              : isFlagMode
               ? '🏴 Welches Land?'
-              : isSilhouetteMode || (isDaily && state.gameCategory === 'SilhouetteMode')
+              : isSilhouetteMode
               ? '🗺 Welches Land?'
               : '📷 Satellitenansicht'}
           </div>
@@ -221,11 +221,11 @@ export default function GameRound() {
             </div>
           )}
           {target && (phase === 'playing' || phase === 'result') && (
-            (isFlagMode || (isDaily && state.gameCategory === 'FlagMode')) ? (
+            isFlagMode ? (
               <FlagDisplay countryCode={countryCode ?? ''} continent={continent} difficulty={effectiveDifficulty} />
-            ) : (isSilhouetteMode || (isDaily && state.gameCategory === 'SilhouetteMode')) ? (
+            ) : isSilhouetteMode ? (
               <SilhouetteDisplay countryCode={countryCode ?? ''} continent={continent} difficulty={effectiveDifficulty} />
-            ) : (isCityHunt || (isDaily && state.gameCategory === 'CityHunt')) ? (
+            ) : isCityHunt ? (
               <CityNameDisplay city={cityName ?? ''} country={countryName} />
             ) : (
               <ImageryMap
@@ -246,7 +246,7 @@ export default function GameRound() {
             interactive={phase === 'playing'}
             showResult={phase === 'result'}
             onGuess={handleGuess}
-            hideLabels={isCityHunt || isCountryMode || (isDaily && ['CityHunt', 'FlagMode', 'SilhouetteMode'].includes(state.gameCategory))}
+            hideLabels={isCityHunt || isCountryMode}
             distKm={distKm}
           />
 
@@ -361,7 +361,7 @@ export default function GameRound() {
 
         <div className="attribution">
           Karte: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap</a>
-          {!isCityHunt && !isCountryMode && !['CityHunt', 'FlagMode', 'SilhouetteMode'].includes(state.gameCategory) && (
+          {!isCityHunt && !isCountryMode && (
             <>&nbsp;|&nbsp;Satellit: <a href="https://www.esri.com" target="_blank" rel="noopener noreferrer">© Esri</a></>
           )}
         </div>

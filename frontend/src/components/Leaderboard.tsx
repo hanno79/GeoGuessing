@@ -220,7 +220,11 @@ export default function Leaderboard() {
                   <td className="lb-name">{e.name}</td>
                   <td className="lb-score">{formatScore(Math.round(e.scorePerRound))}</td>
                   <td className="lb-score">{formatScore(e.totalScore)}</td>
-                  <td><span className="lb-category">{e.gameCategory === 'CityHunt' ? '🏙' : '🛰'}</span></td>
+                  <td><span className="lb-category">{
+                    e.gameCategory === 'CityHunt' ? '🏙' :
+                    e.gameCategory === 'FlagMode' ? '🏴' :
+                    e.gameCategory === 'SilhouetteMode' ? '🗺' : '🛰'
+                  }</span></td>
                   <td><span className={`lb-mode`}>{e.gameMode ?? 'Classic'}</span></td>
                   <td><span className={`lb-diff ${e.difficulty}`}>{e.difficulty}</span></td>
                   <td>{e.roundsCount}</td>
