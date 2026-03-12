@@ -7,11 +7,14 @@ const router = express.Router();
 
 const LOCATIONS_PATH = path.join(__dirname, '../../data/locations.json');
 const CITIES_PATH = path.join(__dirname, '../../data/cities.json');
+const COUNTRIES_PATH = path.join(__dirname, '../../data/countries.json');
 const FALLBACK_LOCATION = { latitude: 52.52, longitude: 13.405 }; // Berlin
 const FALLBACK_CITY = { city: 'Berlin', country: 'Deutschland', latitude: 52.52, longitude: 13.405, difficulty: 'easy' };
+const FALLBACK_COUNTRY = { country: 'Deutschland', countryCode: 'de', latitude: 51.1657, longitude: 10.4515, difficulty: 'easy', continent: 'Europa' };
 
 let locations = null;
 let cities = null;
+let countries = null;
 
 function parseExclude(raw) {
   if (!raw) return [];
@@ -129,6 +132,65 @@ router.get('/city', (req, res) => {
   res.json(result);
 });
 
+// ── Country data loading (Flag Mode & Silhouette Mode) ──────────────────────
+
+function loadCountries() {
+  if (countries !== null) return countries;
+  try {
+    const raw = fs.readFileSync(COUNTRIES_PATH, 'utf-8');
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      console.warn('countries.json is empty or invalid. Using fallback.');
+      countries = [FALLBACK_COUNTRY];
+    } else {
+      const valid = parsed.filter((c, i) => {
+        if (!c.country || typeof c.country !== 'string' || !c.countryCode || !validateCoordinates(c)) {
+          console.warn(`Skipping invalid country at index ${i}:`, JSON.stringify(c));
+          return false;
+        }
+        return true;
+      });
+      countries = valid.length > 0 ? valid : [FALLBACK_COUNTRY];
+    }
+  } catch (err) {
+    console.error('Failed to load countries.json:', err.message, '- Using fallback.');
+    countries = [FALLBACK_COUNTRY];
+  }
+  return countries;
+}
+
+// GET /api/country?difficulty=Easy|Medium|Hard (used by both FlagMode and SilhouetteMode)
+router.get('/country', (req, res) => {
+  const allCountries = loadCountries();
+  const difficulty = req.query.difficulty;
+  const allowedDiffs = DIFFICULTY_POOLS[difficulty] || DIFFICULTY_POOLS.Hard;
+  const pool = allCountries.filter((c) => allowedDiffs.includes(c.difficulty));
+  const selected = pool.length > 0 ? pool : allCountries;
+
+  const exclude = new Set(parseExclude(req.query.exclude));
+  let filtered = exclude.size > 0
+    ? selected.filter((c) => !exclude.has(c.countryCode))
+    : selected;
+  if (filtered.length === 0) filtered = selected;
+
+  const idx = Math.floor(Math.random() * filtered.length);
+  const country = filtered[idx];
+
+  const result = {
+    country: country.country,
+    countryCode: country.countryCode,
+    latitude: country.latitude,
+    longitude: country.longitude,
+  };
+
+  // Include continent hint on Easy difficulty
+  if (difficulty === 'Easy' && country.continent) {
+    result.continent = country.continent;
+  }
+
+  res.json(result);
+});
+
 // ── Seeded PRNG for Daily Challenge ─────────────────────────────────────────
 
 function mulberry32(seed) {
@@ -170,9 +232,24 @@ router.get('/daily', (req, res) => {
     return res.status(400).json({ error: 'round must be 0-4.' });
   }
 
-  const seed = dateToSeed(date) + (category === 'CityHunt' ? 99999 : 0);
+  const CATEGORY_SEED_OFFSET = { SkyView: 0, CityHunt: 99999, FlagMode: 199999, SilhouetteMode: 299999 };
+  const seed = dateToSeed(date) + (CATEGORY_SEED_OFFSET[category] || 0);
 
-  if (category === 'CityHunt') {
+  if (category === 'FlagMode' || category === 'SilhouetteMode') {
+    const allCountries = loadCountries();
+    const pool = allCountries.filter((c) => ['easy', 'medium'].includes(c.difficulty));
+    const selected = pool.length > 0 ? pool : allCountries;
+    const dailyCountries = seededPick(selected, seed, 5);
+    const country = dailyCountries[roundIdx];
+    if (!country) return res.status(404).json({ error: 'No country available.' });
+    res.json({
+      country: country.country,
+      countryCode: country.countryCode,
+      latitude: country.latitude,
+      longitude: country.longitude,
+      continent: country.continent || undefined,
+    });
+  } else if (category === 'CityHunt') {
     const allCities = loadCities();
     const pool = allCities.filter((c) => ['easy', 'medium'].includes(c.difficulty));
     const selected = pool.length > 0 ? pool : allCities;

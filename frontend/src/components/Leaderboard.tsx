@@ -119,6 +119,8 @@ export default function Leaderboard() {
             <option value="">Alle</option>
             <option value="SkyView">🛰 SkyView</option>
             <option value="CityHunt">🏙 CityHunt</option>
+            <option value="FlagMode">🏴 Flaggen</option>
+            <option value="SilhouetteMode">🗺 Silhouette</option>
           </select>
         </div>
 

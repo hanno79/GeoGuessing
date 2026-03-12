@@ -1,6 +1,19 @@
 {
   "changelog": [
     {
+      "version": "1.4.0",
+      "date": "2026-03-12",
+      "title": "Flag Mode & Silhouette Mode",
+      "entries": [
+        "Flaggen-Modus: Erkenne Länder anhand ihrer Flagge und markiere sie auf der Weltkarte",
+        "Silhouetten-Modus: Erkenne Länder anhand ihrer Umrisse — noch kniffliger!",
+        "126 Länder mit drei Schwierigkeitsstufen (Easy/Medium/Hard)",
+        "Kontinent-Hinweis bei Easy-Schwierigkeit",
+        "Tägliche Challenge jetzt auch mit Flaggen und Silhouetten spielbar",
+        "Bestenliste mit Filter für alle vier Kategorien"
+      ]
+    },
+    {
       "version": "1.3.0",
       "date": "2026-03-11",
       "title": "Daily Challenge, Streak Mode & Game-Feel",

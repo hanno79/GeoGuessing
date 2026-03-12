@@ -1,7 +1,7 @@
 const VALID_DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
 const VALID_ROUNDS = [3, 5, 7];
 const VALID_GAME_MODES = ['Classic', 'Zen', 'Daily', 'Streak'];
-const VALID_GAME_CATEGORIES = ['SkyView', 'CityHunt'];
+const VALID_GAME_CATEGORIES = ['SkyView', 'CityHunt', 'FlagMode', 'SilhouetteMode'];
 const NAME_REGEX = /^[a-zA-Z0-9\-_]+$/;
 
 /**

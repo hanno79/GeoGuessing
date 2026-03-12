@@ -10,6 +10,8 @@ import ElapsedTimer from './ElapsedTimer';
 import ImageryMap from './ImageryMap';
 import GuessMap from './GuessMap';
 import CityNameDisplay from './CityNameDisplay';
+import FlagDisplay from './FlagDisplay';
+import SilhouetteDisplay from './SilhouetteDisplay';
 import { playSound, soundForDistance } from '../utils/soundManager';
 
 type Phase = 'loading' | 'playing' | 'result' | 'error';
@@ -27,6 +29,8 @@ export default function GameRound() {
   const [elapsedSec, setElapsedSec] = useState<number>(0);
   const [cityName, setCityName] = useState<string | null>(null);
   const [countryName, setCountryName] = useState<string | null>(null);
+  const [countryCode, setCountryCode] = useState<string | null>(null);
+  const [continent, setContinent] = useState<string | null>(null);
   const [streakBusted, setStreakBusted] = useState(false);
 
   const timedOut = useRef(false);
@@ -35,6 +39,9 @@ export default function GameRound() {
   const isDaily = state.gameMode === 'Daily';
   const isStreak = state.gameMode === 'Streak';
   const isCityHunt = state.gameCategory === 'CityHunt';
+  const isFlagMode = state.gameCategory === 'FlagMode';
+  const isSilhouetteMode = state.gameCategory === 'SilhouetteMode';
+  const isCountryMode = isFlagMode || isSilhouetteMode;
   const showTimer = !isZen && (state.gameMode === 'Classic' || isDaily || isStreak);
 
   // Load a new location when the round index changes
@@ -50,6 +57,8 @@ export default function GameRound() {
     setElapsedSec(0);
     setCityName(null);
     setCountryName(null);
+    setCountryCode(null);
+    setContinent(null);
 
     let url: string;
 
@@ -62,6 +71,14 @@ export default function GameRound() {
         category: state.gameCategory,
       });
       url = `/api/daily?${params}`;
+    } else if (isCountryMode) {
+      const usedCodes = state.rounds
+        .filter((r) => r.targetLocation)
+        .map((r) => r.cityName); // we store countryCode in cityName field for exclude tracking
+      const params = new URLSearchParams();
+      params.set('difficulty', state.difficulty);
+      if (usedCodes.length > 0) params.set('exclude', JSON.stringify(usedCodes));
+      url = `/api/country?${params}`;
     } else {
       const usedTargets = state.rounds
         .filter((r) => r.targetLocation)
@@ -86,6 +103,12 @@ export default function GameRound() {
           if (isCityHunt || isDaily) {
             setCityName(data.city ?? null);
             setCountryName(data.country ?? null);
+          }
+          if (isCountryMode || (isDaily && (state.gameCategory === 'FlagMode' || state.gameCategory === 'SilhouetteMode'))) {
+            setCountryCode(data.countryCode ?? null);
+            setCountryName(data.country ?? null);
+            setContinent(data.continent ?? null);
+            setCityName(data.countryCode ?? null); // store countryCode for exclude tracking
           }
           setPhase('playing');
           roundStartTime.current = Date.now();
@@ -181,20 +204,28 @@ export default function GameRound() {
           <div className="map-label" aria-hidden="true">
             {isCityHunt || (isDaily && state.gameCategory === 'CityHunt')
               ? '🏙 Welche Stadt?'
+              : isFlagMode || (isDaily && state.gameCategory === 'FlagMode')
+              ? '🏴 Welches Land?'
+              : isSilhouetteMode || (isDaily && state.gameCategory === 'SilhouetteMode')
+              ? '🗺 Welches Land?'
               : '📷 Satellitenansicht'}
           </div>
           {phase === 'loading' && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}>
-              {isCityHunt ? 'Lade Stadt …' : 'Lade Standort …'}
+              {isCountryMode ? 'Lade Land …' : isCityHunt ? 'Lade Stadt …' : 'Lade Standort …'}
             </div>
           )}
           {phase === 'error' && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--danger)' }}>
-              {isCityHunt ? '⚠️ Stadt konnte nicht geladen werden.' : '⚠️ Standort konnte nicht geladen werden.'}
+              ⚠️ Daten konnten nicht geladen werden.
             </div>
           )}
           {target && (phase === 'playing' || phase === 'result') && (
-            isCityHunt || (isDaily && state.gameCategory === 'CityHunt') ? (
+            (isFlagMode || (isDaily && state.gameCategory === 'FlagMode')) ? (
+              <FlagDisplay countryCode={countryCode ?? ''} continent={continent} difficulty={effectiveDifficulty} />
+            ) : (isSilhouetteMode || (isDaily && state.gameCategory === 'SilhouetteMode')) ? (
+              <SilhouetteDisplay countryCode={countryCode ?? ''} continent={continent} difficulty={effectiveDifficulty} />
+            ) : (isCityHunt || (isDaily && state.gameCategory === 'CityHunt')) ? (
               <CityNameDisplay city={cityName ?? ''} country={countryName} />
             ) : (
               <ImageryMap
@@ -215,7 +246,7 @@ export default function GameRound() {
             interactive={phase === 'playing'}
             showResult={phase === 'result'}
             onGuess={handleGuess}
-            hideLabels={isCityHunt || (isDaily && state.gameCategory === 'CityHunt')}
+            hideLabels={isCityHunt || isCountryMode || (isDaily && ['CityHunt', 'FlagMode', 'SilhouetteMode'].includes(state.gameCategory))}
             distKm={distKm}
           />
 
@@ -330,7 +361,7 @@ export default function GameRound() {
 
         <div className="attribution">
           Karte: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap</a>
-          {!isCityHunt && !(isDaily && state.gameCategory === 'CityHunt') && (
+          {!isCityHunt && !isCountryMode && !['CityHunt', 'FlagMode', 'SilhouetteMode'].includes(state.gameCategory) && (
             <>&nbsp;|&nbsp;Satellit: <a href="https://www.esri.com" target="_blank" rel="noopener noreferrer">© Esri</a></>
           )}
         </div>

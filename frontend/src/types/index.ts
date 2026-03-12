@@ -1,7 +1,7 @@
 export type Difficulty = 'Easy' | 'Medium' | 'Hard';
 export type RoundsCount = 3 | 5 | 7;
 export type GameMode = 'Classic' | 'Zen' | 'Daily' | 'Streak';
-export type GameCategory = 'SkyView' | 'CityHunt';
+export type GameCategory = 'SkyView' | 'CityHunt' | 'FlagMode' | 'SilhouetteMode';
 
 export interface LatLng {
   latitude: number;

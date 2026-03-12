@@ -29,6 +29,18 @@ const CITY_DIFFICULTY_DESC_ZEN: Record<Difficulty, string> = {
   Hard:   'Nur Stadtname — Auch weniger bekannte Städte',
 };
 
+const COUNTRY_DIFFICULTY_DESC_CLASSIC: Record<Difficulty, string> = {
+  Easy:   '60 s · Bekannte Länder · Kontinent als Hinweis',
+  Medium: '45 s · Auch weniger bekannte Länder',
+  Hard:   '30 s · Alle Länder · Keine Hinweise',
+};
+
+const COUNTRY_DIFFICULTY_DESC_ZEN: Record<Difficulty, string> = {
+  Easy:   'Bekannte Länder · Kontinent als Hinweis',
+  Medium: 'Auch weniger bekannte Länder',
+  Hard:   'Alle Länder · Keine Hinweise',
+};
+
 function todayDateStr(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -48,10 +60,10 @@ export default function Home() {
   const [dailyLeaders, setDailyLeaders] = useState<Record<string, LeaderboardEntry | null>>({});
   const [dailyPlayed, setDailyPlayed] = useState<Record<string, boolean>>({});
 
-  // Load daily leaders for both categories
+  // Load daily leaders for all categories
   useEffect(() => {
     const today = todayDateStr();
-    for (const cat of ['SkyView', 'CityHunt'] as GameCategory[]) {
+    for (const cat of ['SkyView', 'CityHunt', 'FlagMode', 'SilhouetteMode'] as GameCategory[]) {
       fetch(`/api/leaderboard?gameMode=Daily&dailyDate=${today}&gameCategory=${cat}&sort=totalScore&order=desc&limit=1`)
         .then((r) => r.json())
         .then((data: LeaderboardEntry[]) => {
@@ -123,11 +135,16 @@ export default function Home() {
 
   const isStreak = gameMode === 'Streak';
 
+  const isCountryCategory = gameCategory === 'FlagMode' || gameCategory === 'SilhouetteMode';
+
   function getDifficultyHint(): string {
     if (isStreak) {
       const threshold = STREAK_THRESHOLD[difficulty];
       const timer = DIFFICULTY_TIMER[difficulty];
       return `${timer} s · Max. ${threshold} km Abweichung`;
+    }
+    if (isCountryCategory) {
+      return gameMode === 'Classic' ? COUNTRY_DIFFICULTY_DESC_CLASSIC[difficulty] : COUNTRY_DIFFICULTY_DESC_ZEN[difficulty];
     }
     if (gameCategory === 'SkyView') {
       return gameMode === 'Classic' ? DIFFICULTY_DESC_CLASSIC[difficulty] : DIFFICULTY_DESC_ZEN[difficulty];
@@ -142,7 +159,11 @@ export default function Home() {
         <p>
           {gameCategory === 'SkyView'
             ? 'Erkenne den Ort auf dem Satellitenbild und markiere ihn auf der Weltkarte.'
-            : 'Finde die Stadt auf der Weltkarte — nur anhand des Namens!'}
+            : gameCategory === 'CityHunt'
+            ? 'Finde die Stadt auf der Weltkarte — nur anhand des Namens!'
+            : gameCategory === 'FlagMode'
+            ? 'Erkenne das Land anhand seiner Flagge und markiere es auf der Weltkarte.'
+            : 'Erkenne das Land anhand seiner Umrisse und markiere es auf der Weltkarte.'}
         </p>
       </div>
 
@@ -160,7 +181,7 @@ export default function Home() {
           </button>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
-            <div className="option-group" style={{ justifyContent: 'center' }}>
+            <div className="option-group" style={{ justifyContent: 'center', flexWrap: 'wrap' }}>
               <button
                 className={`option-btn ${dailyCategory === 'SkyView' ? 'selected' : ''}`}
                 onClick={() => setDailyCategory('SkyView')}
@@ -175,10 +196,24 @@ export default function Home() {
               >
                 🏙 CityHunt
               </button>
+              <button
+                className={`option-btn ${dailyCategory === 'FlagMode' ? 'selected' : ''}`}
+                onClick={() => setDailyCategory('FlagMode')}
+                type="button"
+              >
+                🏴 Flaggen
+              </button>
+              <button
+                className={`option-btn ${dailyCategory === 'SilhouetteMode' ? 'selected' : ''}`}
+                onClick={() => setDailyCategory('SilhouetteMode')}
+                type="button"
+              >
+                🗺 Silhouette
+              </button>
             </div>
             {dailyPlayed[`${playerName.trim()}_${dailyCategory}`] ? (
               <p style={{ color: 'var(--warning)', fontSize: '0.85rem', margin: 0 }}>
-                Du hast die heutige {dailyCategory} Challenge bereits gespielt.
+                Du hast die heutige {dailyCategory === 'FlagMode' ? 'Flaggen' : dailyCategory === 'SilhouetteMode' ? 'Silhouette' : dailyCategory} Challenge bereits gespielt.
               </p>
             ) : (
               <button className="btn btn-success" onClick={handleDailyStart} type="button">
@@ -192,7 +227,7 @@ export default function Home() {
         <div style={{ marginTop: '0.75rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
           {(() => {
             const leader = dailyLeaders[dailyCategory];
-            if (leader === undefined) return null; // still loading
+            if (leader === undefined) return null;
             if (leader === null) return <span>Noch kein Ergebnis heute — sei der Erste!</span>;
             return <span>🥇 <strong>{leader.name}</strong> — {formatScore(leader.totalScore)} Punkte</span>;
           })()}
@@ -230,7 +265,7 @@ export default function Home() {
         {/* Game Category */}
         <div className="form-group" style={{ marginBottom: '1.25rem' }}>
           <label>Spielkategorie</label>
-          <div className="option-group" role="group" aria-label="Spielkategorie">
+          <div className="option-group" role="group" aria-label="Spielkategorie" style={{ flexWrap: 'wrap' }}>
             <button
               className={`option-btn ${gameCategory === 'SkyView' ? 'selected' : ''}`}
               onClick={() => setGameCategory('SkyView')}
@@ -247,11 +282,31 @@ export default function Home() {
             >
               🏙 CityHunt
             </button>
+            <button
+              className={`option-btn ${gameCategory === 'FlagMode' ? 'selected' : ''}`}
+              onClick={() => setGameCategory('FlagMode')}
+              aria-pressed={gameCategory === 'FlagMode'}
+              type="button"
+            >
+              🏴 Flaggen
+            </button>
+            <button
+              className={`option-btn ${gameCategory === 'SilhouetteMode' ? 'selected' : ''}`}
+              onClick={() => setGameCategory('SilhouetteMode')}
+              aria-pressed={gameCategory === 'SilhouetteMode'}
+              type="button"
+            >
+              🗺 Silhouette
+            </button>
           </div>
           <span className="difficulty-hint">
             {gameCategory === 'SkyView'
               ? 'Erkenne Orte anhand von Satellitenbildern'
-              : 'Finde Städte auf der Weltkarte anhand ihres Namens'}
+              : gameCategory === 'CityHunt'
+              ? 'Finde Städte auf der Weltkarte anhand ihres Namens'
+              : gameCategory === 'FlagMode'
+              ? 'Erkenne Länder anhand ihrer Flagge'
+              : 'Erkenne Länder anhand ihrer Umrisse'}
           </span>
         </div>
 
