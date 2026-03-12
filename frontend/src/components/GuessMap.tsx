@@ -259,11 +259,14 @@ export default function GuessMap({ guess, target, interactive, showResult, onGue
       </MapContainer>
 
       {/* Vehicle label shown after animation */}
-      {showResult && lineAnimDone && distKm != null && (
-        <div className="vehicle-label">
-          {pickVehicle(distKm).emoji} {pickVehicle(distKm).label}
-        </div>
-      )}
+      {showResult && lineAnimDone && distKm != null && (() => {
+        const v = pickVehicle(distKm);
+        return (
+          <div className="vehicle-label">
+            {v.emoji} {v.label}
+          </div>
+        );
+      })()}
 
       {tileError && (
         <div className="map-tile-error" role="alert">
