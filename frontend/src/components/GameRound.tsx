@@ -34,7 +34,7 @@ export default function GameRound() {
   const [continent, setContinent] = useState<string | null>(null);
   const [streakBusted, setStreakBusted] = useState(false);
   const [overlayVisible, setOverlayVisible] = useState(true);
-  const [zoomProgress, setZoomProgress] = useState(0);
+  const zoomProgressRef = useRef(0);
 
   const timedOut = useRef(false);
   const roundStartTime = useRef<number>(Date.now());
@@ -66,7 +66,7 @@ export default function GameRound() {
     setCountryName(null);
     setCountryCode(null);
     setContinent(null);
-    setZoomProgress(0);
+    zoomProgressRef.current = 0;
 
     let url: string;
 
@@ -131,6 +131,8 @@ export default function GameRound() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.currentRoundIndex]);
 
+  const handleZoomProgress = useCallback((p: number) => { zoomProgressRef.current = p; }, []);
+
   const handleGuess = useCallback(
     (ll: LatLng) => {
       if (phase !== 'playing' || !target) return;
@@ -138,7 +140,7 @@ export default function GameRound() {
       const dist = haversineDistance(ll.latitude, ll.longitude, target.latitude, target.longitude);
       const distScore = (isZen || isZoomMode) ? calculateZenDistanceScore(dist) : calculateScore(dist);
       const elapsed = (Date.now() - roundStartTime.current) / 1000;
-      const bonus = isZoomMode ? calculateZoomBonus(zoomProgress) : isZen ? calculateTimeBonus(elapsed, ZEN_TIME_BONUS_WINDOW[state.difficulty]) : 0;
+      const bonus = isZoomMode ? calculateZoomBonus(zoomProgressRef.current) : isZen ? calculateTimeBonus(elapsed, ZEN_TIME_BONUS_WINDOW[state.difficulty]) : 0;
       const totalRoundScore = distScore + bonus;
 
       setGuess(ll);
@@ -165,7 +167,7 @@ export default function GameRound() {
         setStreakBusted(true);
       }
     },
-    [phase, target, dispatch, isZen, isZoomMode, isStreak, state.difficulty, cityName, countryName, zoomProgress]
+    [phase, target, dispatch, isZen, isZoomMode, isStreak, state.difficulty, cityName, countryName]
   );
 
   const handleTimeout = useCallback(() => {
@@ -247,7 +249,7 @@ export default function GameRound() {
                 endZoom={isZoomIn ? ZOOM_IN_END[effectiveDifficulty] : ZOOM_OUT_END[effectiveDifficulty]}
                 durationSec={ZOOM_DURATION[effectiveDifficulty]}
                 running={phase === 'playing'}
-                onProgress={setZoomProgress}
+                onProgress={handleZoomProgress}
               />
             ) : (
               <ImageryMap
@@ -303,7 +305,7 @@ export default function GameRound() {
                   <div className="result-distance">{formatDistance(distKm ?? 0)}</div>
                   <div className="result-score">+{formatScore(roundScore)} Punkte</div>
                   <div className="result-time-bonus" style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                    {formatTime(elapsedSec)}{isZen ? ` · +${formatScore(timeBonus)} Zeitbonus` : isZoomMode ? ` · +${formatScore(timeBonus)} Zoom-Bonus` : ''}
+                    {formatTime(elapsedSec)}{isZoomMode ? ` · +${formatScore(timeBonus)} Zoom-Bonus` : isZen ? ` · +${formatScore(timeBonus)} Zeitbonus` : ''}
                   </div>
                 </>
               ) : (

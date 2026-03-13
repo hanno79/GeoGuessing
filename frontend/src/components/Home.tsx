@@ -160,7 +160,6 @@ export default function Home() {
   const isStreak = gameMode === 'Streak';
 
   const isCountryCategory = gameCategory === 'FlagMode' || gameCategory === 'SilhouetteMode';
-  const isZoomCategory = gameCategory === 'ZoomIn' || gameCategory === 'ZoomOut';
 
   function getDifficultyHint(): string {
     if (isStreak) {
