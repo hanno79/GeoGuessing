@@ -32,6 +32,7 @@ export default function GameRound() {
   const [countryCode, setCountryCode] = useState<string | null>(null);
   const [continent, setContinent] = useState<string | null>(null);
   const [streakBusted, setStreakBusted] = useState(false);
+  const [overlayVisible, setOverlayVisible] = useState(true);
 
   const timedOut = useRef(false);
   const roundStartTime = useRef<number>(Date.now());
@@ -49,6 +50,7 @@ export default function GameRound() {
     let cancelled = false;
     timedOut.current = false;
     setStreakBusted(false);
+    setOverlayVisible(true);
     setPhase('loading');
     setTarget(null);
     setGuess(null);
@@ -250,9 +252,17 @@ export default function GameRound() {
             distKm={distKm}
           />
 
-          {/* Result overlay */}
-          {phase === 'result' && (
+          {/* Result overlay — toggleable for mobile */}
+          {phase === 'result' && overlayVisible && (
             <div className="result-overlay">
+              <button
+                className="result-overlay-toggle"
+                onClick={() => setOverlayVisible(false)}
+                type="button"
+                aria-label="Ergebnis ausblenden"
+              >
+                ✕
+              </button>
               {streakBusted ? (
                 <>
                   <h3 style={{ color: 'var(--danger)' }}>Game Over!</h3>
@@ -285,6 +295,16 @@ export default function GameRound() {
                 </>
               )}
             </div>
+          )}
+          {phase === 'result' && !overlayVisible && (
+            <button
+              className="result-overlay-show"
+              onClick={() => setOverlayVisible(true)}
+              type="button"
+              aria-label="Ergebnis einblenden"
+            >
+              📊
+            </button>
           )}
         </div>
       </div>

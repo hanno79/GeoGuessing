@@ -433,8 +433,37 @@ button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
   text-align: center;
   box-shadow: var(--shadow);
   min-width: 220px;
-  pointer-events: none;
 }
+.result-overlay-toggle {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.45rem;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  line-height: 1;
+}
+.result-overlay-toggle:hover { color: var(--text); background: var(--border); }
+.result-overlay-show {
+  position: absolute;
+  top: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2000;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.75rem;
+  font-size: 1.1rem;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  line-height: 1;
+}
+.result-overlay-show:hover { background: var(--border); }
 .result-overlay h3 { font-size: 1rem; color: var(--text-muted); margin-bottom: 0.5rem; }
 .result-distance { font-size: 1.8rem; font-weight: 800; color: var(--accent-glow); }
 .result-score { font-size: 1.1rem; font-weight: 600; color: var(--success); margin-top: 0.25rem; }
