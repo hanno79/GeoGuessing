@@ -263,6 +263,9 @@ export default function GameRound() {
               >
                 ✕
               </button>
+              {isCountryMode && countryName && (
+                <div className="result-country">{countryName}</div>
+              )}
               {streakBusted ? (
                 <>
                   <h3 style={{ color: 'var(--danger)' }}>Game Over!</h3>

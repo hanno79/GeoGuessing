@@ -464,6 +464,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
   line-height: 1;
 }
 .result-overlay-show:hover { background: var(--border); }
+.result-country { font-size: 1.1rem; font-weight: 700; color: var(--text); margin-bottom: 0.5rem; }
 .result-overlay h3 { font-size: 1rem; color: var(--text-muted); margin-bottom: 0.5rem; }
 .result-distance { font-size: 1.8rem; font-weight: 800; color: var(--accent-glow); }
 .result-score { font-size: 1.1rem; font-weight: 600; color: var(--success); margin-top: 0.25rem; }
