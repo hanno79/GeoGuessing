@@ -41,6 +41,30 @@ const COUNTRY_DIFFICULTY_DESC_ZEN: Record<Difficulty, string> = {
   Hard:   'Alle Länder · Keine Hinweise',
 };
 
+const ZOOM_IN_DIFFICULTY_DESC_CLASSIC: Record<Difficulty, string> = {
+  Easy:   '60 s · Startet weit weg — zoomt langsam rein',
+  Medium: '45 s · Startet sehr weit weg — zoomt auf Stadtebene',
+  Hard:   '30 s · Startet sehr weit weg — zoomt auf Straßenebene',
+};
+
+const ZOOM_IN_DIFFICULTY_DESC_ZEN: Record<Difficulty, string> = {
+  Easy:   'Startet weit weg — zoomt langsam rein',
+  Medium: 'Startet sehr weit weg — zoomt auf Stadtebene',
+  Hard:   'Startet sehr weit weg — zoomt auf Straßenebene',
+};
+
+const ZOOM_OUT_DIFFICULTY_DESC_CLASSIC: Record<Difficulty, string> = {
+  Easy:   '60 s · Startet nah dran — zoomt langsam raus',
+  Medium: '45 s · Startet sehr nah — zoomt auf Stadtebene',
+  Hard:   '30 s · Startet extrem nah — zoomt langsam raus',
+};
+
+const ZOOM_OUT_DIFFICULTY_DESC_ZEN: Record<Difficulty, string> = {
+  Easy:   'Startet nah dran — zoomt langsam raus',
+  Medium: 'Startet sehr nah — zoomt auf Stadtebene',
+  Hard:   'Startet extrem nah — zoomt langsam raus',
+};
+
 function todayDateStr(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -63,7 +87,7 @@ export default function Home() {
   // Load daily leaders for all categories
   useEffect(() => {
     const today = todayDateStr();
-    for (const cat of ['SkyView', 'CityHunt', 'FlagMode', 'SilhouetteMode'] as GameCategory[]) {
+    for (const cat of ['SkyView', 'CityHunt', 'FlagMode', 'SilhouetteMode', 'ZoomIn', 'ZoomOut'] as GameCategory[]) {
       fetch(`/api/leaderboard?gameMode=Daily&dailyDate=${today}&gameCategory=${cat}&sort=totalScore&order=desc&limit=1`)
         .then((r) => r.json())
         .then((data: LeaderboardEntry[]) => {
@@ -136,6 +160,7 @@ export default function Home() {
   const isStreak = gameMode === 'Streak';
 
   const isCountryCategory = gameCategory === 'FlagMode' || gameCategory === 'SilhouetteMode';
+  const isZoomCategory = gameCategory === 'ZoomIn' || gameCategory === 'ZoomOut';
 
   function getDifficultyHint(): string {
     if (isStreak) {
@@ -145,6 +170,12 @@ export default function Home() {
     }
     if (isCountryCategory) {
       return gameMode === 'Classic' ? COUNTRY_DIFFICULTY_DESC_CLASSIC[difficulty] : COUNTRY_DIFFICULTY_DESC_ZEN[difficulty];
+    }
+    if (gameCategory === 'ZoomIn') {
+      return gameMode === 'Classic' ? ZOOM_IN_DIFFICULTY_DESC_CLASSIC[difficulty] : ZOOM_IN_DIFFICULTY_DESC_ZEN[difficulty];
+    }
+    if (gameCategory === 'ZoomOut') {
+      return gameMode === 'Classic' ? ZOOM_OUT_DIFFICULTY_DESC_CLASSIC[difficulty] : ZOOM_OUT_DIFFICULTY_DESC_ZEN[difficulty];
     }
     if (gameCategory === 'SkyView') {
       return gameMode === 'Classic' ? DIFFICULTY_DESC_CLASSIC[difficulty] : DIFFICULTY_DESC_ZEN[difficulty];
@@ -163,7 +194,13 @@ export default function Home() {
             ? 'Finde die Stadt auf der Weltkarte — nur anhand des Namens!'
             : gameCategory === 'FlagMode'
             ? 'Erkenne das Land anhand seiner Flagge und markiere es auf der Weltkarte.'
-            : 'Erkenne das Land anhand seiner Umrisse und markiere es auf der Weltkarte.'}
+            : gameCategory === 'SilhouetteMode'
+            ? 'Erkenne das Land anhand seiner Umrisse und markiere es auf der Weltkarte.'
+            : gameCategory === 'ZoomIn'
+            ? 'Das Bild zoomt langsam rein — rate so früh wie möglich für Bonus-Punkte!'
+            : gameCategory === 'ZoomOut'
+            ? 'Das Bild zoomt langsam raus — rate so früh wie möglich für Bonus-Punkte!'
+            : 'Erkenne den Ort und markiere ihn auf der Weltkarte.'}
         </p>
       </div>
 
@@ -210,10 +247,24 @@ export default function Home() {
               >
                 🗺 Silhouette
               </button>
+              <button
+                className={`option-btn ${dailyCategory === 'ZoomIn' ? 'selected' : ''}`}
+                onClick={() => setDailyCategory('ZoomIn')}
+                type="button"
+              >
+                🔍 ZoomIn
+              </button>
+              <button
+                className={`option-btn ${dailyCategory === 'ZoomOut' ? 'selected' : ''}`}
+                onClick={() => setDailyCategory('ZoomOut')}
+                type="button"
+              >
+                🔭 ZoomOut
+              </button>
             </div>
             {dailyPlayed[`${playerName.trim()}_${dailyCategory}`] ? (
               <p style={{ color: 'var(--warning)', fontSize: '0.85rem', margin: 0 }}>
-                Du hast die heutige {dailyCategory === 'FlagMode' ? 'Flaggen' : dailyCategory === 'SilhouetteMode' ? 'Silhouette' : dailyCategory} Challenge bereits gespielt.
+                Du hast die heutige {dailyCategory === 'FlagMode' ? 'Flaggen' : dailyCategory === 'SilhouetteMode' ? 'Silhouette' : dailyCategory === 'ZoomIn' ? 'ZoomIn' : dailyCategory === 'ZoomOut' ? 'ZoomOut' : dailyCategory} Challenge bereits gespielt.
               </p>
             ) : (
               <button className="btn btn-success" onClick={handleDailyStart} type="button">
@@ -298,6 +349,22 @@ export default function Home() {
             >
               🗺 Silhouette
             </button>
+            <button
+              className={`option-btn ${gameCategory === 'ZoomIn' ? 'selected' : ''}`}
+              onClick={() => setGameCategory('ZoomIn')}
+              aria-pressed={gameCategory === 'ZoomIn'}
+              type="button"
+            >
+              🔍 ZoomIn
+            </button>
+            <button
+              className={`option-btn ${gameCategory === 'ZoomOut' ? 'selected' : ''}`}
+              onClick={() => setGameCategory('ZoomOut')}
+              aria-pressed={gameCategory === 'ZoomOut'}
+              type="button"
+            >
+              🔭 ZoomOut
+            </button>
           </div>
           <span className="difficulty-hint">
             {gameCategory === 'SkyView'
@@ -306,7 +373,13 @@ export default function Home() {
               ? 'Finde Städte auf der Weltkarte anhand ihres Namens'
               : gameCategory === 'FlagMode'
               ? 'Erkenne Länder anhand ihrer Flagge'
-              : 'Erkenne Länder anhand ihrer Umrisse'}
+              : gameCategory === 'SilhouetteMode'
+              ? 'Erkenne Länder anhand ihrer Umrisse'
+              : gameCategory === 'ZoomIn'
+              ? 'Das Bild zoomt rein — rate früh für mehr Punkte'
+              : gameCategory === 'ZoomOut'
+              ? 'Das Bild zoomt raus — rate früh für mehr Punkte'
+              : 'Erkenne Orte anhand von Satellitenbildern'}
           </span>
         </div>
 

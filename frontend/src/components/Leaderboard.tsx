@@ -121,6 +121,8 @@ export default function Leaderboard() {
             <option value="CityHunt">🏙 CityHunt</option>
             <option value="FlagMode">🏴 Flaggen</option>
             <option value="SilhouetteMode">🗺 Silhouette</option>
+            <option value="ZoomIn">🔍 ZoomIn</option>
+            <option value="ZoomOut">🔭 ZoomOut</option>
           </select>
         </div>
 
@@ -223,7 +225,9 @@ export default function Leaderboard() {
                   <td><span className="lb-category">{
                     e.gameCategory === 'CityHunt' ? '🏙' :
                     e.gameCategory === 'FlagMode' ? '🏴' :
-                    e.gameCategory === 'SilhouetteMode' ? '🗺' : '🛰'
+                    e.gameCategory === 'SilhouetteMode' ? '🗺' :
+                    e.gameCategory === 'ZoomIn' ? '🔍' :
+                    e.gameCategory === 'ZoomOut' ? '🔭' : '🛰'
                   }</span></td>
                   <td><span className={`lb-mode`}>{e.gameMode ?? 'Classic'}</span></td>
                   <td><span className={`lb-diff ${e.difficulty}`}>{e.difficulty}</span></td>
