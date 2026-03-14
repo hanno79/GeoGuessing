@@ -191,6 +191,77 @@ router.get('/country', (req, res) => {
   res.json(result);
 });
 
+// ── Puzzle Mode ──────────────────────────────────────────────────────────────
+
+const PUZZLE_REGIONS = {
+  Europa: ['Europa', 'Europa/Asien'],
+  Asien: ['Asien', 'Europa/Asien'],
+  Afrika: ['Afrika'],
+  Amerika: ['Nordamerika', 'Südamerika'],
+  Ozeanien: ['Ozeanien'],
+};
+
+const PUZZLE_DATA_DIR = path.join(__dirname, '../../data/puzzle');
+
+const puzzleGeoCache = {};
+
+function loadPuzzleGeo(region) {
+  const key = region.toLowerCase();
+  if (puzzleGeoCache[key]) return puzzleGeoCache[key];
+  try {
+    const filePath = path.join(PUZZLE_DATA_DIR, `${key}.json`);
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    puzzleGeoCache[key] = JSON.parse(raw);
+    return puzzleGeoCache[key];
+  } catch {
+    return null;
+  }
+}
+
+// GET /api/puzzle/countries?continent=Europa&difficulty=Easy
+router.get('/puzzle/countries', (req, res) => {
+  const { continent, difficulty } = req.query;
+  if (!continent || !PUZZLE_REGIONS[continent]) {
+    return res.status(400).json({ error: `Invalid continent. Valid: ${Object.keys(PUZZLE_REGIONS).join(', ')}` });
+  }
+
+  const allCountries = loadCountries();
+  const allowedContinents = PUZZLE_REGIONS[continent];
+  const allowedDiffs = DIFFICULTY_POOLS[difficulty] || DIFFICULTY_POOLS.Hard;
+
+  const pool = allCountries.filter(
+    (c) => allowedContinents.includes(c.continent) && allowedDiffs.includes(c.difficulty)
+  );
+
+  // Shuffle the pool
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+
+  res.json({
+    region: continent,
+    countries: shuffled.map((c) => ({
+      country: c.country,
+      countryCode: c.countryCode,
+      latitude: c.latitude,
+      longitude: c.longitude,
+    })),
+  });
+});
+
+// GET /api/puzzle/geojson?continent=Europa
+router.get('/puzzle/geojson', (req, res) => {
+  const { continent } = req.query;
+  if (!continent || !PUZZLE_REGIONS[continent]) {
+    return res.status(400).json({ error: `Invalid continent. Valid: ${Object.keys(PUZZLE_REGIONS).join(', ')}` });
+  }
+
+  const geoData = loadPuzzleGeo(continent);
+  if (!geoData) {
+    return res.status(404).json({ error: 'GeoJSON data not found for this region.' });
+  }
+
+  res.json(geoData);
+});
+
 // ── Seeded PRNG for Daily Challenge ─────────────────────────────────────────
 
 function mulberry32(seed) {
@@ -232,7 +303,7 @@ router.get('/daily', (req, res) => {
     return res.status(400).json({ error: 'round must be 0-4.' });
   }
 
-  const CATEGORY_SEED_OFFSET = { SkyView: 0, CityHunt: 99999, FlagMode: 199999, SilhouetteMode: 299999, ZoomOut: 499999 };
+  const CATEGORY_SEED_OFFSET = { SkyView: 0, CityHunt: 99999, FlagMode: 199999, SilhouetteMode: 299999, ZoomOut: 499999, PuzzleMode: 599999 };
   const seed = dateToSeed(date) + (CATEGORY_SEED_OFFSET[category] || 0);
 
   if (category === 'FlagMode' || category === 'SilhouetteMode') {

@@ -49,7 +49,8 @@ export default function GameSummary() {
     ? state.rounds.filter((r) => !r.timedOut && r.distanceKm !== null && r.distanceKm <= STREAK_THRESHOLD[state.difficulty]).length
     : 0;
 
-  const isCountryMode = state.gameCategory === 'FlagMode' || state.gameCategory === 'SilhouetteMode';
+  const isCountryMode = state.gameCategory === 'FlagMode' || state.gameCategory === 'SilhouetteMode' || state.gameCategory === 'PuzzleMode';
+  const isPuzzle = state.gameCategory === 'PuzzleMode';
   const bestRound = [...state.rounds].sort((a, b) => b.score - a.score)[0];
   const totalTimeTaken = state.rounds.reduce((sum, r) => sum + (r.timeTakenSeconds ?? 0), 0);
 
@@ -113,7 +114,8 @@ export default function GameSummary() {
             state.gameCategory === 'CityHunt' ? '🏙 CityHunt' :
             state.gameCategory === 'FlagMode' ? '🏴 Flaggen' :
             state.gameCategory === 'SilhouetteMode' ? '🗺 Silhouette' :
-            state.gameCategory === 'ZoomOut' ? '🔭 ZoomOut' : '🛰 SkyView'
+            state.gameCategory === 'ZoomOut' ? '🔭 ZoomOut' :
+            state.gameCategory === 'PuzzleMode' ? `🧩 Puzzle${state.puzzleRegion ? ` (${state.puzzleRegion})` : ''}` : '🛰 SkyView'
           } · {modeLabel} · {state.difficulty} · {displayRounds} Runden
         </div>
       </div>
@@ -134,12 +136,21 @@ export default function GameSummary() {
             {formatScore(totalScore)}
           </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-label">Ø Distanz</div>
-          <div className="stat-value" style={{ color: 'var(--warning)' }}>
-            {avgDistance !== null ? formatDistance(avgDistance) : '—'}
+        {isPuzzle ? (
+          <div className="stat-card">
+            <div className="stat-label">Richtig</div>
+            <div className="stat-value" style={{ color: 'var(--success)' }}>
+              {state.rounds.filter((r) => r.score > 0).length} / {actualRounds}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="stat-card">
+            <div className="stat-label">Ø Distanz</div>
+            <div className="stat-value" style={{ color: 'var(--warning)' }}>
+              {avgDistance !== null ? formatDistance(avgDistance) : '—'}
+            </div>
+          </div>
+        )}
         <div className="stat-card">
           <div className="stat-label">Beste Runde</div>
           <div className="stat-value" style={{ color: 'var(--success)' }}>

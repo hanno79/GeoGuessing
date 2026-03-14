@@ -1,7 +1,9 @@
 export type Difficulty = 'Easy' | 'Medium' | 'Hard';
 export type RoundsCount = 3 | 5 | 7;
 export type GameMode = 'Classic' | 'Zen' | 'Daily' | 'Streak';
-export type GameCategory = 'SkyView' | 'CityHunt' | 'FlagMode' | 'SilhouetteMode' | 'ZoomOut';
+export type GameCategory = 'SkyView' | 'CityHunt' | 'FlagMode' | 'SilhouetteMode' | 'ZoomOut' | 'PuzzleMode';
+
+export type PuzzleRegion = 'Europa' | 'Asien' | 'Afrika' | 'Amerika' | 'Ozeanien';
 
 export interface LatLng {
   latitude: number;
@@ -27,6 +29,7 @@ export interface GameConfig {
   gameMode: GameMode;
   gameCategory: GameCategory;
   dailyDate?: string;
+  puzzleRegion?: PuzzleRegion;
 }
 
 export interface GameState extends GameConfig {
@@ -116,4 +119,24 @@ export const ZEN_TIME_BONUS_WINDOW: Record<Difficulty, number> = {
   Easy: 120,
   Medium: 90,
   Hard: 60,
+};
+
+/** Puzzle mode: points awarded for correct placement */
+export const PUZZLE_CORRECT_SCORE = 1000;
+/** Puzzle mode: max time bonus for fast placement */
+export const PUZZLE_TIME_BONUS_MAX = 500;
+/** Puzzle mode: time window (seconds) for time bonus per difficulty */
+export const PUZZLE_TIME_WINDOW: Record<Difficulty, number> = {
+  Easy: 30,
+  Medium: 20,
+  Hard: 15,
+};
+
+/** Puzzle regions → which continent values to include */
+export const PUZZLE_REGION_CONTINENTS: Record<PuzzleRegion, string[]> = {
+  Europa: ['Europa', 'Europa/Asien'],
+  Asien: ['Asien', 'Europa/Asien'],
+  Afrika: ['Afrika'],
+  Amerika: ['Nordamerika', 'Südamerika'],
+  Ozeanien: ['Ozeanien'],
 };

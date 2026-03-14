@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
-import type { Difficulty, RoundsCount, GameMode, GameCategory, LeaderboardEntry } from '../types';
+import type { Difficulty, RoundsCount, GameMode, GameCategory, LeaderboardEntry, PuzzleRegion } from '../types';
 import { DIFFICULTY_TIMER, ZEN_TIME_BONUS_WINDOW, STREAK_THRESHOLD } from '../types';
 import { formatScore } from '../utils/scoreCalculator';
 
@@ -53,6 +53,18 @@ const ZOOM_OUT_DIFFICULTY_DESC_ZEN: Record<Difficulty, string> = {
   Hard:   'Startet extrem nah — zoomt raus bis Stadtebene',
 };
 
+const PUZZLE_DIFFICULTY_DESC_CLASSIC: Record<Difficulty, string> = {
+  Easy:   '60 s · Bekannte Länder · Einfache Formen',
+  Medium: '45 s · Auch weniger bekannte Länder',
+  Hard:   '30 s · Alle Länder der Region',
+};
+
+const PUZZLE_DIFFICULTY_DESC_ZEN: Record<Difficulty, string> = {
+  Easy:   'Bekannte Länder · Einfache Formen',
+  Medium: 'Auch weniger bekannte Länder',
+  Hard:   'Alle Länder der Region',
+};
+
 function todayDateStr(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -67,6 +79,7 @@ export default function Home() {
   const [roundsCount, setRoundsCount] = useState<RoundsCount>(5);
   const [gameMode, setGameMode] = useState<GameMode>('Classic');
   const [gameCategory, setGameCategory] = useState<GameCategory>('SkyView');
+  const [puzzleRegion, setPuzzleRegion] = useState<PuzzleRegion>('Europa');
   const [dailyCategory, setDailyCategory] = useState<GameCategory>('SkyView');
   const [showDailyDialog, setShowDailyDialog] = useState(false);
   const [dailyLeaders, setDailyLeaders] = useState<Record<string, LeaderboardEntry | null>>({});
@@ -95,6 +108,8 @@ export default function Home() {
     return '';
   }
 
+  const isPuzzle = gameCategory === 'PuzzleMode';
+
   function handleStart() {
     const err = validateName(playerName);
     if (err) { setNameError(err); return; }
@@ -103,9 +118,10 @@ export default function Home() {
       config: {
         playerName: playerName.trim(),
         difficulty,
-        roundsCount: gameMode === 'Streak' ? 999 : roundsCount,
+        roundsCount: gameMode === 'Streak' || isPuzzle ? 999 : roundsCount,
         gameMode,
         gameCategory,
+        ...(isPuzzle ? { puzzleRegion } : {}),
       },
     });
     navigate('/game');
@@ -147,13 +163,16 @@ export default function Home() {
 
   const isStreak = gameMode === 'Streak';
 
-  const isCountryCategory = gameCategory === 'FlagMode' || gameCategory === 'SilhouetteMode';
+  const isCountryCategory = gameCategory === 'FlagMode' || gameCategory === 'SilhouetteMode' || gameCategory === 'PuzzleMode';
 
   function getDifficultyHint(): string {
-    if (isStreak) {
+    if (isStreak && !isPuzzle) {
       const threshold = STREAK_THRESHOLD[difficulty];
       const timer = DIFFICULTY_TIMER[difficulty];
       return `${timer} s · Max. ${threshold} km Abweichung`;
+    }
+    if (isPuzzle) {
+      return gameMode === 'Classic' ? PUZZLE_DIFFICULTY_DESC_CLASSIC[difficulty] : PUZZLE_DIFFICULTY_DESC_ZEN[difficulty];
     }
     if (isCountryCategory) {
       return gameMode === 'Classic' ? COUNTRY_DIFFICULTY_DESC_CLASSIC[difficulty] : COUNTRY_DIFFICULTY_DESC_ZEN[difficulty];
@@ -182,6 +201,8 @@ export default function Home() {
             ? 'Erkenne das Land anhand seiner Umrisse und markiere es auf der Weltkarte.'
             : gameCategory === 'ZoomOut'
             ? 'Das Bild zoomt langsam raus — rate so früh wie möglich für Bonus-Punkte!'
+            : gameCategory === 'PuzzleMode'
+            ? 'Erkenne die Silhouette und klicke auf die richtige Position — fülle den Kontinent!'
             : 'Erkenne den Ort und markiere ihn auf der Weltkarte.'}
         </p>
       </div>
@@ -332,6 +353,14 @@ export default function Home() {
             >
               🔭 ZoomOut
             </button>
+            <button
+              className={`option-btn ${gameCategory === 'PuzzleMode' ? 'selected' : ''}`}
+              onClick={() => setGameCategory('PuzzleMode')}
+              aria-pressed={gameCategory === 'PuzzleMode'}
+              type="button"
+            >
+              🧩 Puzzle
+            </button>
           </div>
           <span className="difficulty-hint">
             {gameCategory === 'SkyView'
@@ -344,9 +373,42 @@ export default function Home() {
               ? 'Erkenne Länder anhand ihrer Umrisse'
               : gameCategory === 'ZoomOut'
               ? 'Das Bild zoomt raus — rate früh für mehr Punkte'
+              : gameCategory === 'PuzzleMode'
+              ? 'Platziere Länder auf der Karte und fülle den Kontinent'
               : 'Erkenne Orte anhand von Satellitenbildern'}
           </span>
         </div>
+
+        {/* Puzzle Region (only shown for PuzzleMode) */}
+        {isPuzzle && (
+          <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+            <label>Puzzle-Region</label>
+            <div className="option-group" role="group" aria-label="Puzzle-Region" style={{ flexWrap: 'wrap' }}>
+              {(['Europa', 'Asien', 'Afrika', 'Amerika', 'Ozeanien'] as PuzzleRegion[]).map((r) => (
+                <button
+                  key={r}
+                  className={`option-btn ${puzzleRegion === r ? 'selected' : ''}`}
+                  onClick={() => setPuzzleRegion(r)}
+                  aria-pressed={puzzleRegion === r}
+                  type="button"
+                >
+                  {r === 'Europa' ? '🇪🇺 Europa'
+                    : r === 'Asien' ? '🌏 Asien'
+                    : r === 'Afrika' ? '🌍 Afrika'
+                    : r === 'Amerika' ? '🌎 Amerika'
+                    : '🌊 Ozeanien'}
+                </button>
+              ))}
+            </div>
+            <span className="difficulty-hint">
+              {puzzleRegion === 'Europa' ? 'Platziere bis zu 38 europäische Länder'
+                : puzzleRegion === 'Asien' ? 'Platziere bis zu 35 asiatische Länder'
+                : puzzleRegion === 'Afrika' ? 'Platziere bis zu 25 afrikanische Länder'
+                : puzzleRegion === 'Amerika' ? 'Platziere bis zu 10 amerikanische Länder'
+                : 'Platziere bis zu 4 ozeanische Länder'}
+            </span>
+          </div>
+        )}
 
         {/* Game Mode */}
         <div className="form-group" style={{ marginBottom: '1.25rem' }}>
@@ -405,8 +467,8 @@ export default function Home() {
           <span className="difficulty-hint">{getDifficultyHint()}</span>
         </div>
 
-        {/* Rounds (hidden for Streak) */}
-        {!isStreak && (
+        {/* Rounds (hidden for Streak and Puzzle) */}
+        {!isStreak && !isPuzzle && (
           <div className="form-group" style={{ marginBottom: '1.5rem' }}>
             <label>Rundenanzahl</label>
             <div className="option-group" role="group" aria-label="Rundenanzahl">
@@ -432,7 +494,13 @@ export default function Home() {
 
       <div className="card" style={{ textAlign: 'center', padding: '1rem' }}>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-          {isStreak ? (
+          {isPuzzle ? (
+            isStreak
+              ? <>🧩 Puzzle · {puzzleRegion} · Ein Fehler und es ist vorbei!</>
+              : gameMode === 'Classic'
+              ? <>🧩 Puzzle · {puzzleRegion} · Timer: <strong>{DIFFICULTY_TIMER[difficulty]} s</strong> pro Land</>
+              : <>🧩 Puzzle · {puzzleRegion} · Kein Zeitlimit · Zeitbonus möglich</>
+          ) : isStreak ? (
             <>Endlosmodus · Max. <strong>{STREAK_THRESHOLD[difficulty]} km</strong> Abweichung · Timer: <strong>{DIFFICULTY_TIMER[difficulty]} s</strong></>
           ) : gameMode === 'Classic' ? (
             <>Zeitlimit: <strong>{DIFFICULTY_TIMER[difficulty]} s</strong> pro Runde · {roundsCount} Runden · Max. <strong>{(roundsCount * 5000).toLocaleString('de-DE')}</strong> Punkte</>
