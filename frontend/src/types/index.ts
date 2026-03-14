@@ -1,7 +1,7 @@
 export type Difficulty = 'Easy' | 'Medium' | 'Hard';
 export type RoundsCount = 3 | 5 | 7;
 export type GameMode = 'Classic' | 'Zen' | 'Daily' | 'Streak';
-export type GameCategory = 'SkyView' | 'CityHunt' | 'FlagMode' | 'SilhouetteMode' | 'ZoomIn' | 'ZoomOut';
+export type GameCategory = 'SkyView' | 'CityHunt' | 'FlagMode' | 'SilhouetteMode' | 'ZoomOut';
 
 export interface LatLng {
   latitude: number;
@@ -93,25 +93,6 @@ export const DIFFICULTY_ZOOM: Record<Difficulty, number> = {
   Hard: 13,
 };
 
-/** ZoomIn mode: starts at regional zoom (blurred), zooms in to street level */
-export const ZOOM_IN_START: Record<Difficulty, number> = {
-  Easy: 8,
-  Medium: 6,
-  Hard: 5,
-};
-export const ZOOM_IN_END: Record<Difficulty, number> = {
-  Easy: 16,
-  Medium: 17,
-  Hard: 18,
-};
-
-/** Initial CSS blur (px) applied to ZoomIn imagery – fades to 0 during animation */
-export const ZOOM_IN_BLUR: Record<Difficulty, number> = {
-  Easy: 10,
-  Medium: 15,
-  Hard: 20,
-};
-
 /** ZoomOut mode: starts close up, zooms out to reveal context */
 export const ZOOM_OUT_START: Record<Difficulty, number> = {
   Easy: 16,
@@ -124,7 +105,7 @@ export const ZOOM_OUT_END: Record<Difficulty, number> = {
   Hard: 13,
 };
 
-/** Zoom animation duration (shared by ZoomIn and ZoomOut) */
+/** Zoom animation duration for ZoomOut mode */
 export const ZOOM_DURATION: Record<Difficulty, number> = {
   Easy: 60,
   Medium: 45,

@@ -38,7 +38,7 @@ export function calculateTimeBonus(elapsedSeconds: number, timeBonusWindow: numb
 const MAX_ZOOM_BONUS = 1000;
 
 /**
- * Calculates the zoom bonus for ZoomIn/ZoomOut modes.
+ * Calculates the zoom bonus for ZoomOut mode.
  * Earlier guesses (lower progress) earn more bonus points.
  * @param progress 0.0 (animation start) to 1.0 (animation end)
  */

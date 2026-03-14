@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 
 const IMAGERY_URL =
@@ -67,24 +67,11 @@ interface Props {
   durationSec: number;
   running: boolean;
   onProgress: (progress: number) => void;
-  /** Initial CSS blur in pixels – fades to 0 during animation. 0 = no blur. */
-  blurStart?: number;
-  /** Whether to show the centre reticle overlay. */
-  showReticle?: boolean;
 }
 
-export default function ZoomImageryMap({ latitude, longitude, startZoom, endZoom, durationSec, running, onProgress, blurStart = 0, showReticle = true }: Props) {
+export default function ZoomImageryMap({ latitude, longitude, startZoom, endZoom, durationSec, running, onProgress }: Props) {
   const [tileError, setTileError] = useState(false);
   const errorCount = useRef(0);
-  const wrapperRef = useRef<HTMLDivElement>(null);
-
-  const handleProgress = useCallback((p: number) => {
-    onProgress(p);
-    if (blurStart > 0 && wrapperRef.current) {
-      const blur = blurStart * (1 - p);
-      wrapperRef.current.style.filter = blur > 0.5 ? `blur(${blur}px)` : '';
-    }
-  }, [onProgress, blurStart]);
 
   function handleTileError() {
     errorCount.current += 1;
@@ -93,7 +80,7 @@ export default function ZoomImageryMap({ latitude, longitude, startZoom, endZoom
 
   return (
     <>
-      <div ref={wrapperRef} style={{ height: '100%', width: '100%', overflow: 'hidden', filter: blurStart > 0 ? `blur(${blurStart}px)` : undefined }}>
+      <div style={{ height: '100%', width: '100%', overflow: 'hidden' }}>
         <MapContainer
           center={[latitude, longitude]}
           zoom={startZoom}
@@ -119,12 +106,12 @@ export default function ZoomImageryMap({ latitude, longitude, startZoom, endZoom
             endZoom={endZoom}
             durationSec={durationSec}
             running={running}
-            onProgress={handleProgress}
+            onProgress={onProgress}
           />
         </MapContainer>
       </div>
 
-      {showReticle && <div className="map-reticle" aria-hidden="true" />}
+      <div className="map-reticle" aria-hidden="true" />
 
       {tileError && (
         <div className="map-tile-error" role="alert">

@@ -113,7 +113,6 @@ export default function GameSummary() {
             state.gameCategory === 'CityHunt' ? '🏙 CityHunt' :
             state.gameCategory === 'FlagMode' ? '🏴 Flaggen' :
             state.gameCategory === 'SilhouetteMode' ? '🗺 Silhouette' :
-            state.gameCategory === 'ZoomIn' ? '🔍 ZoomIn' :
             state.gameCategory === 'ZoomOut' ? '🔭 ZoomOut' : '🛰 SkyView'
           } · {modeLabel} · {state.difficulty} · {displayRounds} Runden
         </div>

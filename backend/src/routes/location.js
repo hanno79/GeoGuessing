@@ -232,7 +232,7 @@ router.get('/daily', (req, res) => {
     return res.status(400).json({ error: 'round must be 0-4.' });
   }
 
-  const CATEGORY_SEED_OFFSET = { SkyView: 0, CityHunt: 99999, FlagMode: 199999, SilhouetteMode: 299999, ZoomIn: 399999, ZoomOut: 499999 };
+  const CATEGORY_SEED_OFFSET = { SkyView: 0, CityHunt: 99999, FlagMode: 199999, SilhouetteMode: 299999, ZoomOut: 499999 };
   const seed = dateToSeed(date) + (CATEGORY_SEED_OFFSET[category] || 0);
 
   if (category === 'FlagMode' || category === 'SilhouetteMode') {

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
 import type { LatLng } from '../types';
-import { ZEN_TIME_BONUS_WINDOW, STREAK_THRESHOLD, DIFFICULTY_TIMER, ZOOM_IN_START, ZOOM_IN_END, ZOOM_IN_BLUR, ZOOM_OUT_START, ZOOM_OUT_END, ZOOM_DURATION } from '../types';
+import { ZEN_TIME_BONUS_WINDOW, STREAK_THRESHOLD, DIFFICULTY_TIMER, ZOOM_OUT_START, ZOOM_OUT_END, ZOOM_DURATION } from '../types';
 import { haversineDistance } from '../utils/haversine';
 import { calculateScore, calculateZenDistanceScore, calculateTimeBonus, calculateZoomBonus, formatDistance, formatScore, formatTime } from '../utils/scoreCalculator';
 import CountdownTimer from './CountdownTimer';
@@ -45,9 +45,7 @@ export default function GameRound() {
   const isFlagMode = state.gameCategory === 'FlagMode';
   const isSilhouetteMode = state.gameCategory === 'SilhouetteMode';
   const isCountryMode = isFlagMode || isSilhouetteMode;
-  const isZoomIn = state.gameCategory === 'ZoomIn';
   const isZoomOut = state.gameCategory === 'ZoomOut';
-  const isZoomMode = isZoomIn || isZoomOut;
   const showTimer = !isZen && (state.gameMode === 'Classic' || isDaily || isStreak);
 
   // Load a new location when the round index changes
@@ -138,9 +136,9 @@ export default function GameRound() {
       if (phase !== 'playing' || !target) return;
 
       const dist = haversineDistance(ll.latitude, ll.longitude, target.latitude, target.longitude);
-      const distScore = (isZen || isZoomMode) ? calculateZenDistanceScore(dist) : calculateScore(dist);
+      const distScore = (isZen || isZoomOut) ? calculateZenDistanceScore(dist) : calculateScore(dist);
       const elapsed = (Date.now() - roundStartTime.current) / 1000;
-      const bonus = isZoomMode ? calculateZoomBonus(zoomProgressRef.current) : isZen ? calculateTimeBonus(elapsed, ZEN_TIME_BONUS_WINDOW[state.difficulty]) : 0;
+      const bonus = isZoomOut ? calculateZoomBonus(zoomProgressRef.current) : isZen ? calculateTimeBonus(elapsed, ZEN_TIME_BONUS_WINDOW[state.difficulty]) : 0;
       const totalRoundScore = distScore + bonus;
 
       setGuess(ll);
@@ -167,7 +165,7 @@ export default function GameRound() {
         setStreakBusted(true);
       }
     },
-    [phase, target, dispatch, isZen, isZoomMode, isStreak, state.difficulty, cityName, countryName]
+    [phase, target, dispatch, isZen, isZoomOut, isStreak, state.difficulty, cityName, countryName]
   );
 
   const handleTimeout = useCallback(() => {
@@ -218,8 +216,6 @@ export default function GameRound() {
               ? '🏴 Welches Land?'
               : isSilhouetteMode
               ? '🗺 Welches Land?'
-              : isZoomIn
-              ? '🔍 Zoom In'
               : isZoomOut
               ? '🔭 Zoom Out'
               : '📷 Satellitenansicht'}
@@ -241,17 +237,15 @@ export default function GameRound() {
               <SilhouetteDisplay countryCode={countryCode ?? ''} continent={continent} difficulty={effectiveDifficulty} />
             ) : isCityHunt ? (
               <CityNameDisplay city={cityName ?? ''} country={countryName} />
-            ) : isZoomMode ? (
+            ) : isZoomOut ? (
               <ZoomImageryMap
                 latitude={target.latitude}
                 longitude={target.longitude}
-                startZoom={isZoomIn ? ZOOM_IN_START[effectiveDifficulty] : ZOOM_OUT_START[effectiveDifficulty]}
-                endZoom={isZoomIn ? ZOOM_IN_END[effectiveDifficulty] : ZOOM_OUT_END[effectiveDifficulty]}
+                startZoom={ZOOM_OUT_START[effectiveDifficulty]}
+                endZoom={ZOOM_OUT_END[effectiveDifficulty]}
                 durationSec={ZOOM_DURATION[effectiveDifficulty]}
                 running={phase === 'playing'}
                 onProgress={handleZoomProgress}
-                blurStart={isZoomIn ? ZOOM_IN_BLUR[effectiveDifficulty] : 0}
-                showReticle={!isZoomIn}
               />
             ) : (
               <ImageryMap
@@ -307,7 +301,7 @@ export default function GameRound() {
                   <div className="result-distance">{formatDistance(distKm ?? 0)}</div>
                   <div className="result-score">+{formatScore(roundScore)} Punkte</div>
                   <div className="result-time-bonus" style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                    {formatTime(elapsedSec)}{isZoomMode ? ` · +${formatScore(timeBonus)} Zoom-Bonus` : isZen ? ` · +${formatScore(timeBonus)} Zeitbonus` : ''}
+                    {formatTime(elapsedSec)}{isZoomOut ? ` · +${formatScore(timeBonus)} Zoom-Bonus` : isZen ? ` · +${formatScore(timeBonus)} Zeitbonus` : ''}
                   </div>
                 </>
               ) : (
