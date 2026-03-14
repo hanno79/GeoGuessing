@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
 import type { LatLng } from '../types';
-import { ZEN_TIME_BONUS_WINDOW, STREAK_THRESHOLD, DIFFICULTY_TIMER, ZOOM_IN_START, ZOOM_IN_END, ZOOM_OUT_START, ZOOM_OUT_END, ZOOM_DURATION } from '../types';
+import { ZEN_TIME_BONUS_WINDOW, STREAK_THRESHOLD, DIFFICULTY_TIMER, ZOOM_IN_START, ZOOM_IN_END, ZOOM_IN_BLUR, ZOOM_OUT_START, ZOOM_OUT_END, ZOOM_DURATION } from '../types';
 import { haversineDistance } from '../utils/haversine';
 import { calculateScore, calculateZenDistanceScore, calculateTimeBonus, calculateZoomBonus, formatDistance, formatScore, formatTime } from '../utils/scoreCalculator';
 import CountdownTimer from './CountdownTimer';
@@ -250,6 +250,8 @@ export default function GameRound() {
                 durationSec={ZOOM_DURATION[effectiveDifficulty]}
                 running={phase === 'playing'}
                 onProgress={handleZoomProgress}
+                blurStart={isZoomIn ? ZOOM_IN_BLUR[effectiveDifficulty] : 0}
+                showReticle={!isZoomIn}
               />
             ) : (
               <ImageryMap

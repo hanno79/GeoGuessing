@@ -93,16 +93,23 @@ export const DIFFICULTY_ZOOM: Record<Difficulty, number> = {
   Hard: 13,
 };
 
-/** ZoomIn mode: starts far away, zooms in to reveal detail */
+/** ZoomIn mode: starts at regional zoom (blurred), zooms in to street level */
 export const ZOOM_IN_START: Record<Difficulty, number> = {
-  Easy: 3,
-  Medium: 2,
-  Hard: 2,
+  Easy: 8,
+  Medium: 6,
+  Hard: 5,
 };
 export const ZOOM_IN_END: Record<Difficulty, number> = {
+  Easy: 16,
+  Medium: 17,
+  Hard: 18,
+};
+
+/** Initial CSS blur (px) applied to ZoomIn imagery – fades to 0 during animation */
+export const ZOOM_IN_BLUR: Record<Difficulty, number> = {
   Easy: 10,
-  Medium: 10,
-  Hard: 13,
+  Medium: 15,
+  Hard: 20,
 };
 
 /** ZoomOut mode: starts close up, zooms out to reveal context */

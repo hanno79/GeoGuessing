@@ -67,15 +67,24 @@ interface Props {
   durationSec: number;
   running: boolean;
   onProgress: (progress: number) => void;
+  /** Initial CSS blur in pixels – fades to 0 during animation. 0 = no blur. */
+  blurStart?: number;
+  /** Whether to show the centre reticle overlay. */
+  showReticle?: boolean;
 }
 
-export default function ZoomImageryMap({ latitude, longitude, startZoom, endZoom, durationSec, running, onProgress }: Props) {
+export default function ZoomImageryMap({ latitude, longitude, startZoom, endZoom, durationSec, running, onProgress, blurStart = 0, showReticle = true }: Props) {
   const [tileError, setTileError] = useState(false);
   const errorCount = useRef(0);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
   const handleProgress = useCallback((p: number) => {
     onProgress(p);
-  }, [onProgress]);
+    if (blurStart > 0 && wrapperRef.current) {
+      const blur = blurStart * (1 - p);
+      wrapperRef.current.style.filter = blur > 0.5 ? `blur(${blur}px)` : '';
+    }
+  }, [onProgress, blurStart]);
 
   function handleTileError() {
     errorCount.current += 1;
@@ -84,41 +93,42 @@ export default function ZoomImageryMap({ latitude, longitude, startZoom, endZoom
 
   return (
     <>
-      <MapContainer
-        center={[latitude, longitude]}
-        zoom={startZoom}
-        zoomControl={false}
-        dragging={false}
-        scrollWheelZoom={false}
-        doubleClickZoom={false}
-        touchZoom={false}
-        keyboard={false}
-        style={{ height: '100%', width: '100%' }}
-        aria-label="Zoom Satellitenbild"
-      >
-        <TileLayer
-          url={IMAGERY_URL}
-          attribution='Tiles &copy; <a href="https://www.esri.com">Esri</a>'
-          eventHandlers={{ tileerror: handleTileError }}
-          maxZoom={19}
-        />
-        <ZoomAnimator
-          lat={latitude}
-          lng={longitude}
-          startZoom={startZoom}
-          endZoom={endZoom}
-          durationSec={durationSec}
-          running={running}
-          onProgress={handleProgress}
-        />
-      </MapContainer>
+      <div ref={wrapperRef} style={{ height: '100%', width: '100%', filter: blurStart > 0 ? `blur(${blurStart}px)` : undefined }}>
+        <MapContainer
+          center={[latitude, longitude]}
+          zoom={startZoom}
+          zoomControl={false}
+          dragging={false}
+          scrollWheelZoom={false}
+          doubleClickZoom={false}
+          touchZoom={false}
+          keyboard={false}
+          style={{ height: '100%', width: '100%' }}
+          aria-label="Zoom Satellitenbild"
+        >
+          <TileLayer
+            url={IMAGERY_URL}
+            attribution='Tiles &copy; <a href="https://www.esri.com">Esri</a>'
+            eventHandlers={{ tileerror: handleTileError }}
+            maxZoom={19}
+          />
+          <ZoomAnimator
+            lat={latitude}
+            lng={longitude}
+            startZoom={startZoom}
+            endZoom={endZoom}
+            durationSec={durationSec}
+            running={running}
+            onProgress={handleProgress}
+          />
+        </MapContainer>
+      </div>
 
-      {/* Centre reticle */}
-      <div className="map-reticle" aria-hidden="true" />
+      {showReticle && <div className="map-reticle" aria-hidden="true" />}
 
       {tileError && (
         <div className="map-tile-error" role="alert">
-          ⚠️ Kartenkacheln konnten nicht geladen werden.
+          Kartenkacheln konnten nicht geladen werden.
           <br />
           Bitte Verbindung prüfen.
         </div>
