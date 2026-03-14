@@ -42,27 +42,27 @@ const COUNTRY_DIFFICULTY_DESC_ZEN: Record<Difficulty, string> = {
 };
 
 const ZOOM_IN_DIFFICULTY_DESC_CLASSIC: Record<Difficulty, string> = {
-  Easy:   '60 s · Startet weit weg — zoomt langsam rein',
-  Medium: '45 s · Startet sehr weit weg — zoomt auf Stadtebene',
-  Hard:   '30 s · Startet sehr weit weg — zoomt auf Straßenebene',
+  Easy:   '60 s · Unscharfe Regionalansicht — zoomt langsam rein',
+  Medium: '45 s · Stärker verschwommen — zoomt auf Straßenebene',
+  Hard:   '30 s · Stark verschwommen — zoomt auf Gebäudeebene',
 };
 
 const ZOOM_IN_DIFFICULTY_DESC_ZEN: Record<Difficulty, string> = {
-  Easy:   'Startet weit weg — zoomt langsam rein',
-  Medium: 'Startet sehr weit weg — zoomt auf Stadtebene',
-  Hard:   'Startet sehr weit weg — zoomt auf Straßenebene',
+  Easy:   'Unscharfe Regionalansicht — zoomt langsam rein',
+  Medium: 'Stärker verschwommen — zoomt auf Straßenebene',
+  Hard:   'Stark verschwommen — zoomt auf Gebäudeebene',
 };
 
 const ZOOM_OUT_DIFFICULTY_DESC_CLASSIC: Record<Difficulty, string> = {
   Easy:   '60 s · Startet nah dran — zoomt langsam raus',
-  Medium: '45 s · Startet sehr nah — zoomt auf Stadtebene',
-  Hard:   '30 s · Startet extrem nah — zoomt langsam raus',
+  Medium: '45 s · Startet sehr nah — zoomt raus bis Stadtebene',
+  Hard:   '30 s · Startet extrem nah — zoomt raus bis Stadtebene',
 };
 
 const ZOOM_OUT_DIFFICULTY_DESC_ZEN: Record<Difficulty, string> = {
   Easy:   'Startet nah dran — zoomt langsam raus',
-  Medium: 'Startet sehr nah — zoomt auf Stadtebene',
-  Hard:   'Startet extrem nah — zoomt langsam raus',
+  Medium: 'Startet sehr nah — zoomt raus bis Stadtebene',
+  Hard:   'Startet extrem nah — zoomt raus bis Stadtebene',
 };
 
 function todayDateStr(): string {

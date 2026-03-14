@@ -93,7 +93,7 @@ export default function ZoomImageryMap({ latitude, longitude, startZoom, endZoom
 
   return (
     <>
-      <div ref={wrapperRef} style={{ height: '100%', width: '100%', filter: blurStart > 0 ? `blur(${blurStart}px)` : undefined }}>
+      <div ref={wrapperRef} style={{ height: '100%', width: '100%', overflow: 'hidden', filter: blurStart > 0 ? `blur(${blurStart}px)` : undefined }}>
         <MapContainer
           center={[latitude, longitude]}
           zoom={startZoom}
