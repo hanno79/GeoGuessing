@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
 import type { Difficulty, RoundsCount, GameMode, GameCategory, LeaderboardEntry, PuzzleRegion } from '../types';
-import { DIFFICULTY_TIMER, ZEN_TIME_BONUS_WINDOW, STREAK_THRESHOLD } from '../types';
+import { DIFFICULTY_TIMER, ZEN_TIME_BONUS_WINDOW, STREAK_THRESHOLD, SPEED_ROUND_TIMER, SPEED_ROUND_COUNT } from '../types';
 import { formatScore } from '../utils/scoreCalculator';
 
 const DIFFICULTY_DESC_CLASSIC: Record<Difficulty, string> = {
@@ -118,7 +118,7 @@ export default function Home() {
       config: {
         playerName: playerName.trim(),
         difficulty,
-        roundsCount: gameMode === 'Streak' || isPuzzle ? 999 : roundsCount,
+        roundsCount: gameMode === 'Streak' || isPuzzle ? 999 : gameMode === 'SpeedRound' ? SPEED_ROUND_COUNT : roundsCount,
         gameMode,
         gameCategory,
         ...(isPuzzle ? { puzzleRegion } : {}),
@@ -438,12 +438,22 @@ export default function Home() {
             >
               🔥 Streak
             </button>
+            <button
+              className={`option-btn ${gameMode === 'SpeedRound' ? 'selected' : ''}`}
+              onClick={() => setGameMode('SpeedRound')}
+              aria-pressed={gameMode === 'SpeedRound'}
+              type="button"
+            >
+              ⚡ Speed
+            </button>
           </div>
           <span className="difficulty-hint">
             {gameMode === 'Classic'
               ? 'Mit Timer — Zeit läuft ab, dann 0 Punkte'
               : gameMode === 'Zen'
               ? `Ohne Timer — Schnelligkeit gibt bis zu 1.000 Bonuspunkte (${ZEN_TIME_BONUS_WINDOW[difficulty]}s Fenster)`
+              : gameMode === 'SpeedRound'
+              ? `${SPEED_ROUND_COUNT} Runden · ${SPEED_ROUND_TIMER} Sekunden pro Runde — bist du schnell genug?`
               : `Endlosmodus — Ein Fehler und es ist vorbei! Max. ${STREAK_THRESHOLD[difficulty]} km Abweichung`}
           </span>
         </div>
@@ -467,8 +477,8 @@ export default function Home() {
           <span className="difficulty-hint">{getDifficultyHint()}</span>
         </div>
 
-        {/* Rounds (hidden for Streak and Puzzle) */}
-        {!isStreak && !isPuzzle && (
+        {/* Rounds (hidden for Streak, Puzzle, SpeedRound) */}
+        {!isStreak && !isPuzzle && gameMode !== 'SpeedRound' && (
           <div className="form-group" style={{ marginBottom: '1.5rem' }}>
             <label>Rundenanzahl</label>
             <div className="option-group" role="group" aria-label="Rundenanzahl">
@@ -500,6 +510,8 @@ export default function Home() {
               : gameMode === 'Classic'
               ? <>🧩 Puzzle · {puzzleRegion} · Timer: <strong>{DIFFICULTY_TIMER[difficulty]} s</strong> pro Land</>
               : <>🧩 Puzzle · {puzzleRegion} · Kein Zeitlimit · Zeitbonus möglich</>
+          ) : gameMode === 'SpeedRound' ? (
+            <>⚡ Speed Round · <strong>{SPEED_ROUND_COUNT}</strong> Runden · <strong>{SPEED_ROUND_TIMER} s</strong> pro Runde · Max. <strong>{(SPEED_ROUND_COUNT * 5000).toLocaleString('de-DE')}</strong> Punkte</>
           ) : isStreak ? (
             <>Endlosmodus · Max. <strong>{STREAK_THRESHOLD[difficulty]} km</strong> Abweichung · Timer: <strong>{DIFFICULTY_TIMER[difficulty]} s</strong></>
           ) : gameMode === 'Classic' ? (

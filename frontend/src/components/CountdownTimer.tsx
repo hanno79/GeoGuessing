@@ -7,10 +7,11 @@ interface Props {
   difficulty: Difficulty;
   running: boolean;
   onTimeout: () => void;
+  durationOverride?: number;
 }
 
-export default function CountdownTimer({ difficulty, running, onTimeout }: Props) {
-  const total = DIFFICULTY_TIMER[difficulty];
+export default function CountdownTimer({ difficulty, running, onTimeout, durationOverride }: Props) {
+  const total = durationOverride ?? DIFFICULTY_TIMER[difficulty];
   const [remaining, setRemaining] = useState(total);
   const timeoutCalled = useRef(false);
 

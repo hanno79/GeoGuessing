@@ -1,6 +1,28 @@
 {
   "changelog": [
     {
+      "version": "1.6.0",
+      "date": "2026-03-15",
+      "title": "Speed Round",
+      "entries": [
+        "Speed Round: 10 Standorte, 15 Sekunden pro Runde — bist du schnell genug?",
+        "Fester Timer von 15 Sekunden, unabhängig von der Schwierigkeit",
+        "Funktioniert mit allen Spielkategorien (SkyView, CityHunt, Flaggen, Silhouette, ZoomOut)",
+        "Eigene Bestenlisten-Kategorie für Speed Round"
+      ]
+    },
+    {
+      "version": "1.5.0",
+      "date": "2026-03-15",
+      "title": "Puzzle Mode",
+      "entries": [
+        "Puzzle Mode: Platziere Länder-Silhouetten auf der Kontinent-Karte",
+        "5 Puzzle-Regionen: Europa, Asien, Afrika, Amerika, Ozeanien",
+        "Progressives Füllen: Richtige Länder werden grün, falsche rot",
+        "Funktioniert mit Classic, Zen und Streak Spielmodi"
+      ]
+    },
+    {
       "version": "1.4.0",
       "date": "2026-03-12",
       "title": "Flag Mode & Silhouette Mode",
@@ -81,11 +103,6 @@
     {
       "title": "Team Mode",
       "description": "Compete with friends in real-time. Coming soon!",
-      "url": "#"
-    },
-    {
-      "title": "Speed Round",
-      "description": "10 locations, 15 seconds each. Are you fast enough?",
       "url": "#"
     },
     {

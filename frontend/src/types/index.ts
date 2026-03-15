@@ -1,6 +1,6 @@
 export type Difficulty = 'Easy' | 'Medium' | 'Hard';
 export type RoundsCount = 3 | 5 | 7;
-export type GameMode = 'Classic' | 'Zen' | 'Daily' | 'Streak';
+export type GameMode = 'Classic' | 'Zen' | 'Daily' | 'Streak' | 'SpeedRound';
 export type GameCategory = 'SkyView' | 'CityHunt' | 'FlagMode' | 'SilhouetteMode' | 'ZoomOut' | 'PuzzleMode';
 
 export type PuzzleRegion = 'Europa' | 'Asien' | 'Afrika' | 'Amerika' | 'Ozeanien';
@@ -89,6 +89,10 @@ export const DIFFICULTY_TIMER: Record<Difficulty, number> = {
   Medium: 45,
   Hard: 30,
 };
+
+/** Speed Round: fixed timer and round count */
+export const SPEED_ROUND_TIMER = 15;
+export const SPEED_ROUND_COUNT = 10;
 
 export const DIFFICULTY_ZOOM: Record<Difficulty, number> = {
   Easy: 6,

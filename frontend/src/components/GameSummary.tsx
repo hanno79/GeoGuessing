@@ -100,7 +100,7 @@ export default function GameSummary() {
     navigate('/');
   }
 
-  const modeLabel = isDaily ? '📅 Daily' : isStreak ? '🔥 Streak' : state.gameMode;
+  const modeLabel = isDaily ? '📅 Daily' : isStreak ? '🔥 Streak' : state.gameMode === 'SpeedRound' ? '⚡ Speed' : state.gameMode;
   const displayRounds = isStreak ? actualRounds : state.roundsCount;
 
   return (

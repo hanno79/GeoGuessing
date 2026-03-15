@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
 import type { LatLng } from '../types';
-import { ZEN_TIME_BONUS_WINDOW, STREAK_THRESHOLD, DIFFICULTY_TIMER, ZOOM_OUT_START, ZOOM_OUT_END, ZOOM_DURATION } from '../types';
+import { ZEN_TIME_BONUS_WINDOW, STREAK_THRESHOLD, DIFFICULTY_TIMER, ZOOM_OUT_START, ZOOM_OUT_END, ZOOM_DURATION, SPEED_ROUND_TIMER } from '../types';
 import { haversineDistance } from '../utils/haversine';
 import { calculateScore, calculateZenDistanceScore, calculateTimeBonus, calculateZoomBonus, formatDistance, formatScore, formatTime } from '../utils/scoreCalculator';
 import CountdownTimer from './CountdownTimer';
@@ -41,12 +41,13 @@ export default function GameRound() {
   const isZen = state.gameMode === 'Zen';
   const isDaily = state.gameMode === 'Daily';
   const isStreak = state.gameMode === 'Streak';
+  const isSpeedRound = state.gameMode === 'SpeedRound';
   const isCityHunt = state.gameCategory === 'CityHunt';
   const isFlagMode = state.gameCategory === 'FlagMode';
   const isSilhouetteMode = state.gameCategory === 'SilhouetteMode';
   const isCountryMode = isFlagMode || isSilhouetteMode;
   const isZoomOut = state.gameCategory === 'ZoomOut';
-  const showTimer = !isZen && (state.gameMode === 'Classic' || isDaily || isStreak);
+  const showTimer = !isZen && (state.gameMode === 'Classic' || isDaily || isStreak || isSpeedRound);
 
   // Load a new location when the round index changes
   useEffect(() => {
@@ -375,6 +376,7 @@ export default function GameRound() {
             difficulty={isDaily ? 'Medium' : state.difficulty}
             running={phase === 'playing'}
             onTimeout={handleTimeout}
+            durationOverride={isSpeedRound ? SPEED_ROUND_TIMER : undefined}
           />
         )}
 
