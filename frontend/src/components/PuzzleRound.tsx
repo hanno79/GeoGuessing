@@ -37,10 +37,11 @@ export default function PuzzleRound() {
   const [countries, setCountries] = useState<PuzzleCountry[]>([]);
   const [geoData, setGeoData] = useState<GeoJsonObject | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [placedCountries, setPlacedCountries] = useState<Set<string>>(new Set());
+  const [correctCountries, setCorrectCountries] = useState<Set<string>>(new Set());
+  const [wrongCountries, setWrongCountries] = useState<Set<string>>(new Set());
   const [roundScore, setRoundScore] = useState(0);
   const [timeBonus, setTimeBonus] = useState(0);
-  const [wrongCountryCode, setWrongCountryCode] = useState<string | null>(null);
+  const [lastWrongCode, setLastWrongCode] = useState<string | null>(null);
   const [showTargetCountryCode, setShowTargetCountryCode] = useState<string | null>(null);
   const [streakBusted, setStreakBusted] = useState(false);
   const [lastCorrect, setLastCorrect] = useState<boolean | null>(null);
@@ -92,11 +93,11 @@ export default function PuzzleRound() {
         setRoundScore(score);
         setTimeBonus(bonus);
         setLastCorrect(true);
-        setWrongCountryCode(null);
+        setLastWrongCode(null);
         setShowTargetCountryCode(null);
 
-        // Add to placed countries
-        setPlacedCountries((prev) => new Set(prev).add(clickedCode));
+        // Mark as correct (green)
+        setCorrectCountries((prev) => new Set(prev).add(clickedCode));
 
         playSound('excellent');
 
@@ -116,7 +117,10 @@ export default function PuzzleRound() {
       } else {
         // Wrong country clicked
         setLastCorrect(false);
-        setWrongCountryCode(clickedCode);
+        setLastWrongCode(clickedCode);
+
+        // Mark the wrong country as wrong (red) — persists across rounds
+        setWrongCountries((prev) => new Set(prev).add(clickedCode));
 
         if (isStreak) {
           // Streak mode: game over
@@ -138,7 +142,7 @@ export default function PuzzleRound() {
           setPhase('result');
           playSound('timeout');
         } else {
-          // Classic/Zen: show wrong flash briefly, then show correct location
+          // Classic/Zen: wrong answer, show correct location
           playSound('bad');
           setShowTargetCountryCode(currentCountry.countryCode);
 
@@ -156,8 +160,10 @@ export default function PuzzleRound() {
           setRoundScore(0);
           setTimeBonus(0);
 
-          // Still place the country (show it as placed) so the continent fills up
-          setPlacedCountries((prev) => new Set(prev).add(currentCountry.countryCode));
+          // Mark the correct country as "wrong" color (yellow hint) — it was missed
+          // The target gets shown via showTargetCountryCode (yellow)
+          // But we still mark it as placed so it fills the continent
+          setCorrectCountries((prev) => new Set(prev).add(currentCountry.countryCode));
           setPhase('result');
         }
       }
@@ -173,7 +179,8 @@ export default function PuzzleRound() {
     setRoundScore(0);
     setLastCorrect(false);
     setShowTargetCountryCode(currentCountry.countryCode);
-    setPlacedCountries((prev) => new Set(prev).add(currentCountry.countryCode));
+    // Mark as wrong (it was missed)
+    setWrongCountries((prev) => new Set(prev).add(currentCountry.countryCode));
     playSound('timeout');
 
     dispatch({
@@ -206,7 +213,7 @@ export default function PuzzleRound() {
     dispatch({ type: 'NEXT_ROUND' });
     setCurrentIndex(nextIndex);
     setPhase('playing');
-    setWrongCountryCode(null);
+    setLastWrongCode(null);
     setShowTargetCountryCode(null);
     setLastCorrect(null);
     timedOut.current = false;
@@ -215,7 +222,7 @@ export default function PuzzleRound() {
 
   const roundNum = currentIndex + 1;
   const totalCountries = countries.length;
-  const placedCount = placedCountries.size;
+  const placedCount = correctCountries.size;
   const correctCount = state.rounds.filter((r) => r.distanceKm === 0).length;
 
   return (
@@ -252,10 +259,11 @@ export default function PuzzleRound() {
           <PuzzleMap
             region={region}
             geoData={geoData}
-            placedCountries={placedCountries}
+            correctCountries={correctCountries}
+            wrongCountries={wrongCountries}
             interactive={phase === 'playing'}
             onCountryClick={handleCountryClick}
-            wrongCountryCode={wrongCountryCode}
+            lastWrongCode={lastWrongCode}
             showTargetCountryCode={showTargetCountryCode}
           />
 
@@ -321,8 +329,8 @@ export default function PuzzleRound() {
             </div>
           )}
           <div className="game-info-item">
-            <span>Platziert</span>
-            <span>{placedCount} / {totalCountries}</span>
+            <span>Richtig</span>
+            <span style={{ color: 'var(--success)' }}>{correctCount}</span>
           </div>
           <div className="game-info-item">
             <span>Punkte</span>

@@ -30,7 +30,7 @@ const HIDDEN_STYLE: L.PathOptions = {
   opacity: 0.5,
 };
 
-const PLACED_STYLE: L.PathOptions = {
+const CORRECT_STYLE: L.PathOptions = {
   fillColor: '#3fb950',
   fillOpacity: 0.6,
   color: '#2ea043',
@@ -38,7 +38,7 @@ const PLACED_STYLE: L.PathOptions = {
   opacity: 0.9,
 };
 
-const WRONG_FLASH_STYLE: L.PathOptions = {
+const WRONG_STYLE: L.PathOptions = {
   fillColor: '#f85149',
   fillOpacity: 0.5,
   color: '#da3633',
@@ -46,7 +46,7 @@ const WRONG_FLASH_STYLE: L.PathOptions = {
   opacity: 0.9,
 };
 
-const TARGET_FLASH_STYLE: L.PathOptions = {
+const TARGET_HINT_STYLE: L.PathOptions = {
   fillColor: '#f0b429',
   fillOpacity: 0.6,
   color: '#d4a017',
@@ -73,27 +73,35 @@ function FitRegion({ region }: { region: string }) {
 interface PuzzleMapProps {
   region: string;
   geoData: GeoJsonObject | null;
-  placedCountries: Set<string>;
+  correctCountries: Set<string>;
+  wrongCountries: Set<string>;
   interactive: boolean;
   onCountryClick: (countryCode: string) => void;
-  wrongCountryCode: string | null;
+  lastWrongCode: string | null;
   showTargetCountryCode: string | null;
 }
 
 export default function PuzzleMap({
   region,
   geoData,
-  placedCountries,
+  correctCountries,
+  wrongCountries,
   interactive,
   onCountryClick,
-  wrongCountryCode,
+  lastWrongCode,
   showTargetCountryCode,
 }: PuzzleMapProps) {
   const geoLayerRef = useRef<L.GeoJSON | null>(null);
+  // Use refs so click handlers always see latest values
+  const interactiveRef = useRef(interactive);
+  const onCountryClickRef = useRef(onCountryClick);
+
+  useEffect(() => { interactiveRef.current = interactive; }, [interactive]);
+  useEffect(() => { onCountryClickRef.current = onCountryClick; }, [onCountryClick]);
 
   const view = REGION_VIEW[region] || REGION_VIEW.Europa;
 
-  // Update styles when placedCountries, wrongCountryCode, or showTargetCountryCode changes
+  // Update styles reactively
   useEffect(() => {
     const layer = geoLayerRef.current;
     if (!layer) return;
@@ -103,40 +111,35 @@ export default function PuzzleMap({
       const code = geoLayer.feature?.properties?.countryCode;
       if (!code) return;
 
-      if (code === wrongCountryCode) {
-        (l as L.Path).setStyle(WRONG_FLASH_STYLE);
-      } else if (code === showTargetCountryCode && !placedCountries.has(code)) {
-        (l as L.Path).setStyle(TARGET_FLASH_STYLE);
-      } else if (placedCountries.has(code)) {
-        (l as L.Path).setStyle(PLACED_STYLE);
+      if (code === showTargetCountryCode && !correctCountries.has(code) && !wrongCountries.has(code)) {
+        (l as L.Path).setStyle(TARGET_HINT_STYLE);
+      } else if (correctCountries.has(code)) {
+        (l as L.Path).setStyle(CORRECT_STYLE);
+      } else if (wrongCountries.has(code)) {
+        (l as L.Path).setStyle(WRONG_STYLE);
       } else {
         (l as L.Path).setStyle(HIDDEN_STYLE);
       }
     });
-  }, [placedCountries, wrongCountryCode, showTargetCountryCode]);
+  }, [correctCountries, wrongCountries, lastWrongCode, showTargetCountryCode]);
 
   const onEachFeature = useCallback(
     (feature: Feature, layer: L.Layer) => {
       const code = feature.properties?.countryCode;
       if (!code) return;
 
-      layer.on('click', () => {
-        if (interactive) {
-          onCountryClick(code);
+      layer.on('click', (e: L.LeafletMouseEvent) => {
+        L.DomEvent.stopPropagation(e);
+        if (interactiveRef.current) {
+          onCountryClickRef.current(code);
         }
       });
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 
   const style = useCallback(
-    (feature?: Feature) => {
-      const code = feature?.properties?.countryCode;
-      if (code && placedCountries.has(code)) return PLACED_STYLE;
-      return HIDDEN_STYLE;
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    () => HIDDEN_STYLE,
     []
   );
 
