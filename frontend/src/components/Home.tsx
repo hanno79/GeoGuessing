@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
-import type { Difficulty, RoundsCount, GameMode, GameCategory } from '../types';
-import { DIFFICULTY_TIMER, ZEN_TIME_BONUS_WINDOW } from '../types';
+import type { Difficulty, RoundsCount, GameMode, GameCategory, LeaderboardEntry, PuzzleRegion } from '../types';
+import { DIFFICULTY_TIMER, ZEN_TIME_BONUS_WINDOW, STREAK_THRESHOLD, SPEED_ROUND_TIMER, SPEED_ROUND_COUNT } from '../types';
+import { formatScore } from '../utils/scoreCalculator';
 
 const DIFFICULTY_DESC_CLASSIC: Record<Difficulty, string> = {
   Easy:   '60 s · Weite Ansicht — Landschaften erkennbar',
@@ -28,6 +29,46 @@ const CITY_DIFFICULTY_DESC_ZEN: Record<Difficulty, string> = {
   Hard:   'Nur Stadtname — Auch weniger bekannte Städte',
 };
 
+const COUNTRY_DIFFICULTY_DESC_CLASSIC: Record<Difficulty, string> = {
+  Easy:   '60 s · Bekannte Länder · Kontinent als Hinweis',
+  Medium: '45 s · Auch weniger bekannte Länder',
+  Hard:   '30 s · Alle Länder · Keine Hinweise',
+};
+
+const COUNTRY_DIFFICULTY_DESC_ZEN: Record<Difficulty, string> = {
+  Easy:   'Bekannte Länder · Kontinent als Hinweis',
+  Medium: 'Auch weniger bekannte Länder',
+  Hard:   'Alle Länder · Keine Hinweise',
+};
+
+const ZOOM_OUT_DIFFICULTY_DESC_CLASSIC: Record<Difficulty, string> = {
+  Easy:   '60 s · Startet nah dran — zoomt langsam raus',
+  Medium: '45 s · Startet sehr nah — zoomt raus bis Stadtebene',
+  Hard:   '30 s · Startet extrem nah — zoomt raus bis Stadtebene',
+};
+
+const ZOOM_OUT_DIFFICULTY_DESC_ZEN: Record<Difficulty, string> = {
+  Easy:   'Startet nah dran — zoomt langsam raus',
+  Medium: 'Startet sehr nah — zoomt raus bis Stadtebene',
+  Hard:   'Startet extrem nah — zoomt raus bis Stadtebene',
+};
+
+const PUZZLE_DIFFICULTY_DESC_CLASSIC: Record<Difficulty, string> = {
+  Easy:   '60 s · Bekannte Länder · Einfache Formen',
+  Medium: '45 s · Auch weniger bekannte Länder',
+  Hard:   '30 s · Alle Länder der Region',
+};
+
+const PUZZLE_DIFFICULTY_DESC_ZEN: Record<Difficulty, string> = {
+  Easy:   'Bekannte Länder · Einfache Formen',
+  Medium: 'Auch weniger bekannte Länder',
+  Hard:   'Alle Länder der Region',
+};
+
+function todayDateStr(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export default function Home() {
   const { dispatch } = useGame();
   const navigate = useNavigate();
@@ -38,6 +79,24 @@ export default function Home() {
   const [roundsCount, setRoundsCount] = useState<RoundsCount>(5);
   const [gameMode, setGameMode] = useState<GameMode>('Classic');
   const [gameCategory, setGameCategory] = useState<GameCategory>('SkyView');
+  const [puzzleRegion, setPuzzleRegion] = useState<PuzzleRegion>('Europa');
+  const [dailyCategory, setDailyCategory] = useState<GameCategory>('SkyView');
+  const [showDailyDialog, setShowDailyDialog] = useState(false);
+  const [dailyLeaders, setDailyLeaders] = useState<Record<string, LeaderboardEntry | null>>({});
+  const [dailyPlayed, setDailyPlayed] = useState<Record<string, boolean>>({});
+
+  // Load daily leaders for all categories
+  useEffect(() => {
+    const today = todayDateStr();
+    for (const cat of ['SkyView', 'CityHunt', 'FlagMode', 'SilhouetteMode', 'ZoomOut'] as GameCategory[]) {
+      fetch(`/api/leaderboard?gameMode=Daily&dailyDate=${today}&gameCategory=${cat}&sort=totalScore&order=desc&limit=1`)
+        .then((r) => r.json())
+        .then((data: LeaderboardEntry[]) => {
+          setDailyLeaders((prev) => ({ ...prev, [cat]: data[0] ?? null }));
+        })
+        .catch(() => {});
+    }
+  }, []);
 
   const NAME_REGEX = /^[a-zA-Z0-9\-_]+$/;
 
@@ -49,11 +108,82 @@ export default function Home() {
     return '';
   }
 
+  const isPuzzle = gameCategory === 'PuzzleMode';
+
   function handleStart() {
     const err = validateName(playerName);
     if (err) { setNameError(err); return; }
-    dispatch({ type: 'START_GAME', config: { playerName: playerName.trim(), difficulty, roundsCount, gameMode, gameCategory } });
+    dispatch({
+      type: 'START_GAME',
+      config: {
+        playerName: playerName.trim(),
+        difficulty,
+        roundsCount: gameMode === 'Streak' || isPuzzle ? 999 : gameMode === 'SpeedRound' ? SPEED_ROUND_COUNT : roundsCount,
+        gameMode,
+        gameCategory,
+        ...(isPuzzle ? { puzzleRegion } : {}),
+      },
+    });
     navigate('/game');
+  }
+
+  async function handleDailyStart() {
+    const err = validateName(playerName);
+    if (err) { setNameError(err); return; }
+
+    const name = playerName.trim();
+    const today = todayDateStr();
+
+    // Check if player already played this daily challenge
+    try {
+      const res = await fetch(`/api/daily/check?name=${encodeURIComponent(name)}&date=${today}&category=${dailyCategory}`);
+      const data = await res.json();
+      if (data.played) {
+        setDailyPlayed((prev) => ({ ...prev, [`${name}_${dailyCategory}`]: true }));
+        return;
+      }
+    } catch {
+      // If check fails, allow playing (backend will still enforce at save time)
+    }
+
+    dispatch({
+      type: 'START_GAME',
+      config: {
+        playerName: name,
+        difficulty: 'Medium',
+        roundsCount: 5,
+        gameMode: 'Daily',
+        gameCategory: dailyCategory,
+        dailyDate: today,
+      },
+    });
+    setShowDailyDialog(false);
+    navigate('/game');
+  }
+
+  const isStreak = gameMode === 'Streak';
+
+  const isCountryCategory = gameCategory === 'FlagMode' || gameCategory === 'SilhouetteMode' || gameCategory === 'PuzzleMode';
+
+  function getDifficultyHint(): string {
+    if (isStreak && !isPuzzle) {
+      const threshold = STREAK_THRESHOLD[difficulty];
+      const timer = DIFFICULTY_TIMER[difficulty];
+      return `${timer} s · Max. ${threshold} km Abweichung`;
+    }
+    if (isPuzzle) {
+      return gameMode === 'Classic' ? PUZZLE_DIFFICULTY_DESC_CLASSIC[difficulty] : PUZZLE_DIFFICULTY_DESC_ZEN[difficulty];
+    }
+    if (isCountryCategory) {
+      return gameMode === 'Classic' ? COUNTRY_DIFFICULTY_DESC_CLASSIC[difficulty] : COUNTRY_DIFFICULTY_DESC_ZEN[difficulty];
+    }
+    if (gameCategory === 'ZoomOut') {
+      return gameMode === 'Classic' ? ZOOM_OUT_DIFFICULTY_DESC_CLASSIC[difficulty] : ZOOM_OUT_DIFFICULTY_DESC_ZEN[difficulty];
+    }
+    if (gameCategory === 'SkyView') {
+      return gameMode === 'Classic' ? DIFFICULTY_DESC_CLASSIC[difficulty] : DIFFICULTY_DESC_ZEN[difficulty];
+    }
+    return gameMode === 'Classic' ? CITY_DIFFICULTY_DESC_CLASSIC[difficulty] : CITY_DIFFICULTY_DESC_ZEN[difficulty];
   }
 
   return (
@@ -63,8 +193,102 @@ export default function Home() {
         <p>
           {gameCategory === 'SkyView'
             ? 'Erkenne den Ort auf dem Satellitenbild und markiere ihn auf der Weltkarte.'
-            : 'Finde die Stadt auf der Weltkarte — nur anhand des Namens!'}
+            : gameCategory === 'CityHunt'
+            ? 'Finde die Stadt auf der Weltkarte — nur anhand des Namens!'
+            : gameCategory === 'FlagMode'
+            ? 'Erkenne das Land anhand seiner Flagge und markiere es auf der Weltkarte.'
+            : gameCategory === 'SilhouetteMode'
+            ? 'Erkenne das Land anhand seiner Umrisse und markiere es auf der Weltkarte.'
+            : gameCategory === 'ZoomOut'
+            ? 'Das Bild zoomt langsam raus — rate so früh wie möglich für Bonus-Punkte!'
+            : gameCategory === 'PuzzleMode'
+            ? 'Erkenne die Silhouette und klicke auf die richtige Position — fülle den Kontinent!'
+            : 'Erkenne den Ort und markiere ihn auf der Weltkarte.'}
         </p>
+      </div>
+
+      {/* Daily Challenge Card */}
+      <div className="card daily-card" style={{ textAlign: 'center', border: '1px solid var(--accent)', background: 'rgba(31,111,235,0.06)' }}>
+        <div style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+          📅 Tägliche Challenge
+        </div>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
+          Jeden Tag 5 gleiche Orte für alle Spieler. Nur ein Versuch!
+        </p>
+        {!showDailyDialog ? (
+          <button className="btn btn-primary" onClick={() => setShowDailyDialog(true)} type="button">
+            Heute spielen
+          </button>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
+            <div className="option-group" style={{ justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button
+                className={`option-btn ${dailyCategory === 'SkyView' ? 'selected' : ''}`}
+                onClick={() => setDailyCategory('SkyView')}
+                type="button"
+              >
+                🛰 SkyView
+              </button>
+              <button
+                className={`option-btn ${dailyCategory === 'CityHunt' ? 'selected' : ''}`}
+                onClick={() => setDailyCategory('CityHunt')}
+                type="button"
+              >
+                🏙 CityHunt
+              </button>
+              <button
+                className={`option-btn ${dailyCategory === 'FlagMode' ? 'selected' : ''}`}
+                onClick={() => setDailyCategory('FlagMode')}
+                type="button"
+              >
+                🏴 Flaggen
+              </button>
+              <button
+                className={`option-btn ${dailyCategory === 'SilhouetteMode' ? 'selected' : ''}`}
+                onClick={() => setDailyCategory('SilhouetteMode')}
+                type="button"
+              >
+                🗺 Silhouette
+              </button>
+              <button
+                className={`option-btn ${dailyCategory === 'ZoomOut' ? 'selected' : ''}`}
+                onClick={() => setDailyCategory('ZoomOut')}
+                type="button"
+              >
+                🔭 ZoomOut
+              </button>
+            </div>
+            {dailyPlayed[`${playerName.trim()}_${dailyCategory}`] ? (
+              <p style={{ color: 'var(--warning)', fontSize: '0.85rem', margin: 0 }}>
+                Du hast die heutige {dailyCategory === 'FlagMode' ? 'Flaggen' : dailyCategory === 'SilhouetteMode' ? 'Silhouette' : dailyCategory === 'ZoomOut' ? 'ZoomOut' : dailyCategory} Challenge bereits gespielt.
+              </p>
+            ) : (
+              <button className="btn btn-success" onClick={handleDailyStart} type="button">
+                📅 Challenge starten
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Current leader */}
+        <div style={{ marginTop: '0.75rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+          {(() => {
+            const leader = dailyLeaders[dailyCategory];
+            if (leader === undefined) return null;
+            if (leader === null) return <span>Noch kein Ergebnis heute — sei der Erste!</span>;
+            return <span>🥇 <strong>{leader.name}</strong> — {formatScore(leader.totalScore)} Punkte</span>;
+          })()}
+        </div>
+
+        {/* Link to daily leaderboard */}
+        <button
+          className="btn btn-secondary"
+          style={{ marginTop: '0.5rem', fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
+          onClick={() => navigate('/leaderboard?gameMode=Daily')}
+          type="button"
+        >
+          📊 Alle Ergebnisse
+        </button>
       </div>
 
       <div className="card">
@@ -88,7 +312,7 @@ export default function Home() {
         {/* Game Category */}
         <div className="form-group" style={{ marginBottom: '1.25rem' }}>
           <label>Spielkategorie</label>
-          <div className="option-group" role="group" aria-label="Spielkategorie">
+          <div className="option-group" role="group" aria-label="Spielkategorie" style={{ flexWrap: 'wrap' }}>
             <button
               className={`option-btn ${gameCategory === 'SkyView' ? 'selected' : ''}`}
               onClick={() => setGameCategory('SkyView')}
@@ -105,13 +329,86 @@ export default function Home() {
             >
               🏙 CityHunt
             </button>
+            <button
+              className={`option-btn ${gameCategory === 'FlagMode' ? 'selected' : ''}`}
+              onClick={() => setGameCategory('FlagMode')}
+              aria-pressed={gameCategory === 'FlagMode'}
+              type="button"
+            >
+              🏴 Flaggen
+            </button>
+            <button
+              className={`option-btn ${gameCategory === 'SilhouetteMode' ? 'selected' : ''}`}
+              onClick={() => setGameCategory('SilhouetteMode')}
+              aria-pressed={gameCategory === 'SilhouetteMode'}
+              type="button"
+            >
+              🗺 Silhouette
+            </button>
+            <button
+              className={`option-btn ${gameCategory === 'ZoomOut' ? 'selected' : ''}`}
+              onClick={() => setGameCategory('ZoomOut')}
+              aria-pressed={gameCategory === 'ZoomOut'}
+              type="button"
+            >
+              🔭 ZoomOut
+            </button>
+            <button
+              className={`option-btn ${gameCategory === 'PuzzleMode' ? 'selected' : ''}`}
+              onClick={() => setGameCategory('PuzzleMode')}
+              aria-pressed={gameCategory === 'PuzzleMode'}
+              type="button"
+            >
+              🧩 Puzzle
+            </button>
           </div>
           <span className="difficulty-hint">
             {gameCategory === 'SkyView'
               ? 'Erkenne Orte anhand von Satellitenbildern'
-              : 'Finde Städte auf der Weltkarte anhand ihres Namens'}
+              : gameCategory === 'CityHunt'
+              ? 'Finde Städte auf der Weltkarte anhand ihres Namens'
+              : gameCategory === 'FlagMode'
+              ? 'Erkenne Länder anhand ihrer Flagge'
+              : gameCategory === 'SilhouetteMode'
+              ? 'Erkenne Länder anhand ihrer Umrisse'
+              : gameCategory === 'ZoomOut'
+              ? 'Das Bild zoomt raus — rate früh für mehr Punkte'
+              : gameCategory === 'PuzzleMode'
+              ? 'Platziere Länder auf der Karte und fülle den Kontinent'
+              : 'Erkenne Orte anhand von Satellitenbildern'}
           </span>
         </div>
+
+        {/* Puzzle Region (only shown for PuzzleMode) */}
+        {isPuzzle && (
+          <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+            <label>Puzzle-Region</label>
+            <div className="option-group" role="group" aria-label="Puzzle-Region" style={{ flexWrap: 'wrap' }}>
+              {(['Europa', 'Asien', 'Afrika', 'Amerika', 'Ozeanien'] as PuzzleRegion[]).map((r) => (
+                <button
+                  key={r}
+                  className={`option-btn ${puzzleRegion === r ? 'selected' : ''}`}
+                  onClick={() => setPuzzleRegion(r)}
+                  aria-pressed={puzzleRegion === r}
+                  type="button"
+                >
+                  {r === 'Europa' ? '🇪🇺 Europa'
+                    : r === 'Asien' ? '🌏 Asien'
+                    : r === 'Afrika' ? '🌍 Afrika'
+                    : r === 'Amerika' ? '🌎 Amerika'
+                    : '🌊 Ozeanien'}
+                </button>
+              ))}
+            </div>
+            <span className="difficulty-hint">
+              {puzzleRegion === 'Europa' ? 'Platziere bis zu 38 europäische Länder'
+                : puzzleRegion === 'Asien' ? 'Platziere bis zu 35 asiatische Länder'
+                : puzzleRegion === 'Afrika' ? 'Platziere bis zu 25 afrikanische Länder'
+                : puzzleRegion === 'Amerika' ? 'Platziere bis zu 10 amerikanische Länder'
+                : 'Platziere bis zu 4 ozeanische Länder'}
+            </span>
+          </div>
+        )}
 
         {/* Game Mode */}
         <div className="form-group" style={{ marginBottom: '1.25rem' }}>
@@ -133,11 +430,31 @@ export default function Home() {
             >
               🧘 Zen
             </button>
+            <button
+              className={`option-btn ${gameMode === 'Streak' ? 'selected' : ''}`}
+              onClick={() => setGameMode('Streak')}
+              aria-pressed={gameMode === 'Streak'}
+              type="button"
+            >
+              🔥 Streak
+            </button>
+            <button
+              className={`option-btn ${gameMode === 'SpeedRound' ? 'selected' : ''}`}
+              onClick={() => setGameMode('SpeedRound')}
+              aria-pressed={gameMode === 'SpeedRound'}
+              type="button"
+            >
+              ⚡ Speed
+            </button>
           </div>
           <span className="difficulty-hint">
             {gameMode === 'Classic'
               ? 'Mit Timer — Zeit läuft ab, dann 0 Punkte'
-              : `Ohne Timer — Schnelligkeit gibt bis zu 1.000 Bonuspunkte (${ZEN_TIME_BONUS_WINDOW[difficulty]}s Fenster)`}
+              : gameMode === 'Zen'
+              ? `Ohne Timer — Schnelligkeit gibt bis zu 1.000 Bonuspunkte (${ZEN_TIME_BONUS_WINDOW[difficulty]}s Fenster)`
+              : gameMode === 'SpeedRound'
+              ? `${SPEED_ROUND_COUNT} Runden · ${SPEED_ROUND_TIMER} Sekunden pro Runde — bist du schnell genug?`
+              : `Endlosmodus — Ein Fehler und es ist vorbei! Max. ${STREAK_THRESHOLD[difficulty]} km Abweichung`}
           </span>
         </div>
 
@@ -157,30 +474,28 @@ export default function Home() {
               </button>
             ))}
           </div>
-          <span className="difficulty-hint">
-            {gameCategory === 'SkyView'
-              ? (gameMode === 'Classic' ? DIFFICULTY_DESC_CLASSIC[difficulty] : DIFFICULTY_DESC_ZEN[difficulty])
-              : (gameMode === 'Classic' ? CITY_DIFFICULTY_DESC_CLASSIC[difficulty] : CITY_DIFFICULTY_DESC_ZEN[difficulty])}
-          </span>
+          <span className="difficulty-hint">{getDifficultyHint()}</span>
         </div>
 
-        {/* Rounds */}
-        <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-          <label>Rundenanzahl</label>
-          <div className="option-group" role="group" aria-label="Rundenanzahl">
-            {([3, 5, 7] as RoundsCount[]).map((r) => (
-              <button
-                key={r}
-                className={`option-btn ${roundsCount === r ? 'selected' : ''}`}
-                onClick={() => setRoundsCount(r)}
-                aria-pressed={roundsCount === r}
-                type="button"
-              >
-                {r} Runden
-              </button>
-            ))}
+        {/* Rounds (hidden for Streak, Puzzle, SpeedRound) */}
+        {!isStreak && !isPuzzle && gameMode !== 'SpeedRound' && (
+          <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+            <label>Rundenanzahl</label>
+            <div className="option-group" role="group" aria-label="Rundenanzahl">
+              {([3, 5, 7] as RoundsCount[]).map((r) => (
+                <button
+                  key={r}
+                  className={`option-btn ${roundsCount === r ? 'selected' : ''}`}
+                  onClick={() => setRoundsCount(r)}
+                  aria-pressed={roundsCount === r}
+                  type="button"
+                >
+                  {r} Runden
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         <button className="btn btn-primary btn-full btn-lg" onClick={handleStart} type="button">
           🚀 Spiel starten
@@ -189,10 +504,20 @@ export default function Home() {
 
       <div className="card" style={{ textAlign: 'center', padding: '1rem' }}>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-          {gameMode === 'Classic' ? (
+          {isPuzzle ? (
+            isStreak
+              ? <>🧩 Puzzle · {puzzleRegion} · Ein Fehler und es ist vorbei!</>
+              : gameMode === 'Classic'
+              ? <>🧩 Puzzle · {puzzleRegion} · Timer: <strong>{DIFFICULTY_TIMER[difficulty]} s</strong> pro Land</>
+              : <>🧩 Puzzle · {puzzleRegion} · Kein Zeitlimit · Zeitbonus möglich</>
+          ) : gameMode === 'SpeedRound' ? (
+            <>⚡ Speed Round · <strong>{SPEED_ROUND_COUNT}</strong> Runden · <strong>{SPEED_ROUND_TIMER} s</strong> pro Runde · Max. <strong>{(SPEED_ROUND_COUNT * 5000).toLocaleString('de-DE')}</strong> Punkte</>
+          ) : isStreak ? (
+            <>Endlosmodus · Max. <strong>{STREAK_THRESHOLD[difficulty]} km</strong> Abweichung · Timer: <strong>{DIFFICULTY_TIMER[difficulty]} s</strong></>
+          ) : gameMode === 'Classic' ? (
             <>Zeitlimit: <strong>{DIFFICULTY_TIMER[difficulty]} s</strong> pro Runde · {roundsCount} Runden · Max. <strong>{(roundsCount * 5000).toLocaleString('de-DE')}</strong> Punkte</>
           ) : (
-            <>Kein Zeitlimit · {roundsCount} Runden · Max. <strong>{(roundsCount * 6000).toLocaleString('de-DE')}</strong> Punkte</>
+            <>Kein Zeitlimit · {roundsCount} Runden · Max. <strong>{(roundsCount * 5000).toLocaleString('de-DE')}</strong> Punkte</>
           )}
         </p>
       </div>

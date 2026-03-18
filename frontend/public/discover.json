@@ -1,18 +1,101 @@
 {
   "changelog": [
     {
+      "version": "1.6.0",
+      "date": "2026-03-15",
+      "title": "Speed Round",
+      "entries": [
+        "Speed Round: 10 Standorte, 15 Sekunden pro Runde — bist du schnell genug?",
+        "Fester Timer von 15 Sekunden, unabhängig von der Schwierigkeit",
+        "Funktioniert mit allen Spielkategorien (SkyView, CityHunt, Flaggen, Silhouette, ZoomOut)",
+        "Eigene Bestenlisten-Kategorie für Speed Round"
+      ]
+    },
+    {
+      "version": "1.5.0",
+      "date": "2026-03-15",
+      "title": "Puzzle Mode",
+      "entries": [
+        "Puzzle Mode: Platziere Länder-Silhouetten auf der Kontinent-Karte",
+        "5 Puzzle-Regionen: Europa, Asien, Afrika, Amerika, Ozeanien",
+        "Progressives Füllen: Richtige Länder werden grün, falsche rot",
+        "Funktioniert mit Classic, Zen und Streak Spielmodi"
+      ]
+    },
+    {
+      "version": "1.4.0",
+      "date": "2026-03-12",
+      "title": "Flag Mode & Silhouette Mode",
+      "entries": [
+        "Flaggen-Modus: Erkenne Länder anhand ihrer Flagge und markiere sie auf der Weltkarte",
+        "Silhouetten-Modus: Erkenne Länder anhand ihrer Umrisse — noch kniffliger!",
+        "126 Länder mit drei Schwierigkeitsstufen (Easy/Medium/Hard)",
+        "Kontinent-Hinweis bei Easy-Schwierigkeit",
+        "Tägliche Challenge jetzt auch mit Flaggen und Silhouetten spielbar",
+        "Bestenliste mit Filter für alle vier Kategorien"
+      ]
+    },
+    {
+      "version": "1.3.0",
+      "date": "2026-03-11",
+      "title": "Daily Challenge, Streak Mode & Game-Feel",
+      "entries": [
+        "Tägliche Challenge: Jeden Tag 5 gleiche Orte für alle Spieler — nur ein Versuch!",
+        "Streak Modus: Endlosmodus — rate so lange richtig wie möglich, ein Fehler beendet das Spiel",
+        "Animierte Ergebnislinie: Die Distanzlinie wächst animiert vom Tipp zum Ziel",
+        "Sound-Effekte: Akustisches Feedback für Treffer, Fehlschüsse und Timer-Warnung (Web Audio API)",
+        "Sound-Toggle im Header — standardmässig stumm geschaltet",
+        "252 SkyView-Standorte und 257 CityHunt-Städte für noch mehr Abwechslung",
+        "Streak-Schwellenwerte: Easy ≤500km, Medium ≤300km, Hard ≤150km"
+      ]
+    },
+    {
+      "version": "1.2.1",
+      "date": "2026-03-10",
+      "title": "Scoring-Balance & Zeitmessung",
+      "entries": [
+        "Zeitmessung jetzt auch im Classic-Modus sichtbar",
+        "Bestenliste: Bei Punktgleichstand entscheidet die schnellere Zeit",
+        "Bestenliste: Spaltenreihenfolge optimiert (Ø Punkte vor Score)",
+        "Zen-Modus Scoring auf 5.000er-Skala normalisiert (faire Vergleichbarkeit)",
+        "Spielergebnis zeigt Gesamtzeit und Rundenzeiten für alle Modi"
+      ]
+    },
+    {
+      "version": "1.2.0",
+      "date": "2026-03-10",
+      "title": "CityHunt Modus",
+      "entries": [
+        "Neuer Spielmodus CityHunt: Finde Städte auf der Weltkarte anhand ihres Namens",
+        "Über 200 Städte weltweit mit drei Schwierigkeitsgraden",
+        "Eigene Bestenliste für den CityHunt-Modus",
+        "Kategorie-Auswahl auf dem Startbildschirm (SkyView / CityHunt)",
+        "Schwierigkeitsgrade im CityHunt: Easy zeigt Land, Hard nur den Stadtnamen"
+      ]
+    },
+    {
+      "version": "1.1.0",
+      "date": "2026-03-06",
+      "title": "Zen Modus",
+      "entries": [
+        "Neuer Zen-Modus: Spiele ohne Zeitdruck",
+        "Zeitbonus-System: Je schneller, desto mehr Punkte",
+        "Bestenliste zeigt Gesamtzeit im Zen-Modus an"
+      ]
+    },
+    {
       "version": "1.0.0",
       "date": "2026-03-04",
       "title": "Initial Release",
       "entries": [
-        "Interactive world map guessing with Leaflet",
-        "Three difficulty levels: Easy, Medium, Hard",
-        "Configurable round counts: 3, 5 or 7 rounds",
-        "Score calculation based on Haversine distance",
-        "Persistent leaderboard with SQLite",
-        "Responsive layout for desktop and mobile",
-        "Tile error fallback handling",
-        "Round result reveal with distance line"
+        "Interaktives Weltkarten-Raten mit Leaflet",
+        "Drei Schwierigkeitsgrade: Leicht, Mittel, Schwer",
+        "Konfigurierbare Rundenzahl: 3, 5 oder 7 Runden",
+        "Punkteberechnung basierend auf Haversine-Distanz",
+        "Persistente Bestenliste mit SQLite",
+        "Responsives Layout für Desktop und Mobil",
+        "Tile-Fehler-Fallback-Behandlung",
+        "Ergebnis-Anzeige mit Distanzlinie"
       ]
     }
   ],
@@ -20,11 +103,6 @@
     {
       "title": "Team Mode",
       "description": "Compete with friends in real-time. Coming soon!",
-      "url": "#"
-    },
-    {
-      "title": "Speed Round",
-      "description": "10 locations, 15 seconds each. Are you fast enough?",
       "url": "#"
     },
     {

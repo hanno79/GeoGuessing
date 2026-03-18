@@ -1,5 +1,6 @@
 const MAX_SCORE = 5000;
 const MAX_DISTANCE_KM = 5000;
+const MAX_DISTANCE_SCORE_ZEN = 4000;
 
 /**
  * Calculates the round score based on distance.
@@ -12,6 +13,16 @@ export function calculateScore(distanceKm: number): number {
   return Math.max(0, Math.floor(MAX_SCORE * (1 - distanceKm / MAX_DISTANCE_KM)));
 }
 
+/**
+ * Calculates the distance score for Zen mode (max 4000).
+ * Combined with time bonus (max 1000) the total max equals 5000,
+ * matching Classic mode's maximum for fair leaderboard comparison.
+ */
+export function calculateZenDistanceScore(distanceKm: number): number {
+  if (distanceKm <= 0) return MAX_DISTANCE_SCORE_ZEN;
+  return Math.max(0, Math.floor(MAX_DISTANCE_SCORE_ZEN * (1 - distanceKm / MAX_DISTANCE_KM)));
+}
+
 const MAX_TIME_BONUS = 1000;
 
 /**
@@ -22,6 +33,19 @@ export function calculateTimeBonus(elapsedSeconds: number, timeBonusWindow: numb
   if (elapsedSeconds <= 0) return MAX_TIME_BONUS;
   if (elapsedSeconds >= timeBonusWindow) return 0;
   return Math.max(0, Math.floor(MAX_TIME_BONUS * (1 - elapsedSeconds / timeBonusWindow)));
+}
+
+const MAX_ZOOM_BONUS = 1000;
+
+/**
+ * Calculates the zoom bonus for ZoomOut mode.
+ * Earlier guesses (lower progress) earn more bonus points.
+ * @param progress 0.0 (animation start) to 1.0 (animation end)
+ */
+export function calculateZoomBonus(progress: number): number {
+  if (progress <= 0) return MAX_ZOOM_BONUS;
+  if (progress >= 1) return 0;
+  return Math.max(0, Math.floor(MAX_ZOOM_BONUS * (1 - progress)));
 }
 
 export function formatTime(totalSeconds: number): string {

@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import type { LeaderboardEntry, Difficulty, GameMode, GameCategory } from '../types';
 import { formatDistance, formatScore, formatTime } from '../utils/scoreCalculator';
 
-type SortKey = keyof Pick<LeaderboardEntry, 'totalScore' | 'avgDistanceKm' | 'timestamp' | 'name' | 'roundsCount' | 'totalTimeTakenSeconds'>;
+type SortKey = keyof Pick<LeaderboardEntry, 'totalScore' | 'scorePerRound' | 'avgDistanceKm' | 'timestamp' | 'name' | 'roundsCount' | 'totalTimeTakenSeconds'>;
 type SortDir = 'asc' | 'desc';
 
 const DIFFICULTIES: (Difficulty | '')[] = ['', 'Easy', 'Medium', 'Hard'];
@@ -16,15 +17,16 @@ function formatDate(ts: string) {
 }
 
 export default function Leaderboard() {
+  const [searchParams] = useSearchParams();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const [difficulty, setDifficulty] = useState<Difficulty | ''>('');
-  const [rounds, setRounds] = useState('');
-  const [gameMode, setGameMode] = useState<GameMode | ''>('');
-  const [gameCategory, setGameCategory] = useState<GameCategory | ''>('');
-  const [sort, setSort] = useState<SortKey>('totalScore');
+  const [difficulty, setDifficulty] = useState<Difficulty | ''>((searchParams.get('difficulty') as Difficulty) || '');
+  const [rounds, setRounds] = useState(searchParams.get('roundsCount') || '');
+  const [gameMode, setGameMode] = useState<GameMode | ''>((searchParams.get('gameMode') as GameMode) || '');
+  const [gameCategory, setGameCategory] = useState<GameCategory | ''>((searchParams.get('gameCategory') as GameCategory) || '');
+  const [sort, setSort] = useState<SortKey>('scorePerRound');
   const [order, setOrder] = useState<SortDir>('desc');
 
   const load = useCallback(async () => {
@@ -117,6 +119,10 @@ export default function Leaderboard() {
             <option value="">Alle</option>
             <option value="SkyView">🛰 SkyView</option>
             <option value="CityHunt">🏙 CityHunt</option>
+            <option value="FlagMode">🏴 Flaggen</option>
+            <option value="SilhouetteMode">🗺 Silhouette</option>
+            <option value="ZoomOut">🔭 ZoomOut</option>
+            <option value="PuzzleMode">🧩 Puzzle</option>
           </select>
         </div>
 
@@ -130,6 +136,9 @@ export default function Leaderboard() {
             <option value="">Alle</option>
             <option value="Classic">Classic</option>
             <option value="Zen">Zen</option>
+            <option value="Daily">📅 Daily</option>
+            <option value="Streak">🔥 Streak</option>
+            <option value="SpeedRound">⚡ Speed</option>
           </select>
         </div>
 
@@ -161,6 +170,13 @@ export default function Leaderboard() {
                   aria-sort={sort === 'name' ? (order === 'asc' ? 'ascending' : 'descending') : 'none'}
                 >
                   Name{sortIndicator('name')}
+                </th>
+                <th
+                  className={sort === 'scorePerRound' ? 'sorted' : ''}
+                  onClick={() => toggleSort('scorePerRound')}
+                  aria-sort={sort === 'scorePerRound' ? (order === 'asc' ? 'ascending' : 'descending') : 'none'}
+                >
+                  Ø Punkte{sortIndicator('scorePerRound')}
                 </th>
                 <th
                   className={sort === 'totalScore' ? 'sorted' : ''}
@@ -205,8 +221,15 @@ export default function Leaderboard() {
                     {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
                   </td>
                   <td className="lb-name">{e.name}</td>
+                  <td className="lb-score">{formatScore(Math.round(e.scorePerRound))}</td>
                   <td className="lb-score">{formatScore(e.totalScore)}</td>
-                  <td><span className="lb-category">{e.gameCategory === 'CityHunt' ? '🏙' : '🛰'}</span></td>
+                  <td><span className="lb-category">{
+                    e.gameCategory === 'CityHunt' ? '🏙' :
+                    e.gameCategory === 'FlagMode' ? '🏴' :
+                    e.gameCategory === 'SilhouetteMode' ? '🗺' :
+                    e.gameCategory === 'ZoomOut' ? '🔭' :
+                    e.gameCategory === 'PuzzleMode' ? '🧩' : '🛰'
+                  }</span></td>
                   <td><span className={`lb-mode`}>{e.gameMode ?? 'Classic'}</span></td>
                   <td><span className={`lb-diff ${e.difficulty}`}>{e.difficulty}</span></td>
                   <td>{e.roundsCount}</td>

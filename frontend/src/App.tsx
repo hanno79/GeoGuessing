@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Home from './components/Home';
 import GameRound from './components/GameRound';
+import PuzzleRound from './components/PuzzleRound';
 import GameSummary from './components/GameSummary';
 import Leaderboard from './components/Leaderboard';
 import Discover from './components/Discover';
@@ -12,6 +13,12 @@ function GameGuard({ children }: { children: React.ReactNode }) {
   if (state.phase === 'setup') return <Navigate to="/" replace />;
   if (state.phase === 'summary') return <Navigate to="/summary" replace />;
   return <>{children}</>;
+}
+
+function GameRouter() {
+  const { state } = useGame();
+  if (state.gameCategory === 'PuzzleMode') return <PuzzleRound />;
+  return <GameRound />;
 }
 
 function SummaryGuard({ children }: { children: React.ReactNode }) {
@@ -29,7 +36,7 @@ export default function App() {
           path="/game"
           element={
             <GameGuard>
-              <GameRound />
+              <GameRouter />
             </GameGuard>
           }
         />

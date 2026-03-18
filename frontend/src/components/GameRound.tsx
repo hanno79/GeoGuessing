@@ -2,14 +2,18 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
 import type { LatLng } from '../types';
-import { ZEN_TIME_BONUS_WINDOW } from '../types';
+import { ZEN_TIME_BONUS_WINDOW, STREAK_THRESHOLD, DIFFICULTY_TIMER, ZOOM_OUT_START, ZOOM_OUT_END, ZOOM_DURATION, SPEED_ROUND_TIMER } from '../types';
 import { haversineDistance } from '../utils/haversine';
-import { calculateScore, calculateTimeBonus, formatDistance, formatScore, formatTime } from '../utils/scoreCalculator';
+import { calculateScore, calculateZenDistanceScore, calculateTimeBonus, calculateZoomBonus, formatDistance, formatScore, formatTime } from '../utils/scoreCalculator';
 import CountdownTimer from './CountdownTimer';
 import ElapsedTimer from './ElapsedTimer';
 import ImageryMap from './ImageryMap';
+import ZoomImageryMap from './ZoomImageryMap';
 import GuessMap from './GuessMap';
 import CityNameDisplay from './CityNameDisplay';
+import FlagDisplay from './FlagDisplay';
+import SilhouetteDisplay from './SilhouetteDisplay';
+import { playSound, soundForDistance } from '../utils/soundManager';
 
 type Phase = 'loading' | 'playing' | 'result' | 'error';
 
@@ -26,16 +30,31 @@ export default function GameRound() {
   const [elapsedSec, setElapsedSec] = useState<number>(0);
   const [cityName, setCityName] = useState<string | null>(null);
   const [countryName, setCountryName] = useState<string | null>(null);
+  const [countryCode, setCountryCode] = useState<string | null>(null);
+  const [continent, setContinent] = useState<string | null>(null);
+  const [streakBusted, setStreakBusted] = useState(false);
+  const [overlayVisible, setOverlayVisible] = useState(true);
+  const zoomProgressRef = useRef(0);
 
   const timedOut = useRef(false);
   const roundStartTime = useRef<number>(Date.now());
   const isZen = state.gameMode === 'Zen';
+  const isDaily = state.gameMode === 'Daily';
+  const isStreak = state.gameMode === 'Streak';
+  const isSpeedRound = state.gameMode === 'SpeedRound';
   const isCityHunt = state.gameCategory === 'CityHunt';
+  const isFlagMode = state.gameCategory === 'FlagMode';
+  const isSilhouetteMode = state.gameCategory === 'SilhouetteMode';
+  const isCountryMode = isFlagMode || isSilhouetteMode;
+  const isZoomOut = state.gameCategory === 'ZoomOut';
+  const showTimer = !isZen && (state.gameMode === 'Classic' || isDaily || isStreak || isSpeedRound);
 
   // Load a new location when the round index changes
   useEffect(() => {
     let cancelled = false;
     timedOut.current = false;
+    setStreakBusted(false);
+    setOverlayVisible(true);
     setPhase('loading');
     setTarget(null);
     setGuess(null);
@@ -44,19 +63,63 @@ export default function GameRound() {
     setElapsedSec(0);
     setCityName(null);
     setCountryName(null);
+    setCountryCode(null);
+    setContinent(null);
+    zoomProgressRef.current = 0;
 
-    const url = isCityHunt ? `/api/city?difficulty=${state.difficulty}` : '/api/location';
+    let url: string;
+
+    if (isDaily) {
+      // Daily Challenge: fetch deterministic location
+      const date = state.dailyDate || new Date().toISOString().slice(0, 10);
+      const params = new URLSearchParams({
+        date,
+        round: String(state.currentRoundIndex),
+        category: state.gameCategory,
+      });
+      url = `/api/daily?${params}`;
+    } else if (isCountryMode) {
+      const usedCodes = state.rounds
+        .filter((r) => r.targetLocation)
+        .map((r) => r.cityName); // we store countryCode in cityName field for exclude tracking
+      const params = new URLSearchParams();
+      params.set('difficulty', state.difficulty);
+      if (usedCodes.length > 0) params.set('exclude', JSON.stringify(usedCodes));
+      url = `/api/country?${params}`;
+    } else {
+      const usedTargets = state.rounds
+        .filter((r) => r.targetLocation)
+        .map((r) =>
+          isCityHunt
+            ? r.cityName
+            : `${r.targetLocation!.latitude},${r.targetLocation!.longitude}`,
+        );
+
+      const params = new URLSearchParams();
+      if (isCityHunt) params.set('difficulty', state.difficulty);
+      if (usedTargets.length > 0) params.set('exclude', JSON.stringify(usedTargets));
+
+      url = isCityHunt ? `/api/city?${params}` : `/api/location?${params}`;
+    }
+
     fetch(url)
       .then((r) => r.json())
       .then((data) => {
         if (!cancelled) {
           setTarget({ latitude: data.latitude, longitude: data.longitude });
           if (isCityHunt) {
-            setCityName(data.city);
+            setCityName(data.city ?? null);
             setCountryName(data.country ?? null);
+          }
+          if (isCountryMode) {
+            setCountryCode(data.countryCode ?? null);
+            setCountryName(data.country ?? null);
+            setContinent(data.continent ?? null);
+            setCityName(data.countryCode ?? null); // store countryCode for exclude tracking
           }
           setPhase('playing');
           roundStartTime.current = Date.now();
+          playSound('start');
         }
       })
       .catch(() => {
@@ -67,14 +130,16 @@ export default function GameRound() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.currentRoundIndex]);
 
+  const handleZoomProgress = useCallback((p: number) => { zoomProgressRef.current = p; }, []);
+
   const handleGuess = useCallback(
     (ll: LatLng) => {
       if (phase !== 'playing' || !target) return;
 
       const dist = haversineDistance(ll.latitude, ll.longitude, target.latitude, target.longitude);
-      const distScore = calculateScore(dist);
+      const distScore = (isZen || isZoomOut) ? calculateZenDistanceScore(dist) : calculateScore(dist);
       const elapsed = (Date.now() - roundStartTime.current) / 1000;
-      const bonus = isZen ? calculateTimeBonus(elapsed, ZEN_TIME_BONUS_WINDOW[state.difficulty]) : 0;
+      const bonus = isZoomOut ? calculateZoomBonus(zoomProgressRef.current) : isZen ? calculateTimeBonus(elapsed, ZEN_TIME_BONUS_WINDOW[state.difficulty]) : 0;
       const totalRoundScore = distScore + bonus;
 
       setGuess(ll);
@@ -83,6 +148,7 @@ export default function GameRound() {
       setTimeBonus(bonus);
       setElapsedSec(Math.floor(elapsed));
       setPhase('result');
+      playSound(soundForDistance(dist));
 
       dispatch({
         type: 'SUBMIT_GUESS',
@@ -90,33 +156,53 @@ export default function GameRound() {
         distanceKm: dist,
         score: totalRoundScore,
         targetLocation: target,
-        timeTakenSeconds: isZen ? Math.floor(elapsed) : null,
+        timeTakenSeconds: Math.floor(elapsed),
         cityName: cityName ?? undefined,
         countryName: countryName ?? undefined,
       });
+
+      // Streak mode: check if bust
+      if (isStreak && dist > STREAK_THRESHOLD[state.difficulty]) {
+        setStreakBusted(true);
+      }
     },
-    [phase, target, dispatch, isZen, state.difficulty]
+    [phase, target, dispatch, isZen, isZoomOut, isStreak, state.difficulty, cityName, countryName]
   );
 
   const handleTimeout = useCallback(() => {
     if (phase !== 'playing' || timedOut.current || !target) return;
     timedOut.current = true;
+    const elapsed = Math.floor((Date.now() - roundStartTime.current) / 1000);
     setDistKm(null);
     setRoundScore(0);
     setPhase('result');
-    dispatch({ type: 'TIMEOUT', targetLocation: target });
-  }, [phase, target, dispatch]);
+    playSound('timeout');
+    dispatch({ type: 'TIMEOUT', targetLocation: target, timeTakenSeconds: elapsed });
+
+    // Streak: timeout = game over
+    if (isStreak) {
+      setStreakBusted(true);
+    }
+  }, [phase, target, dispatch, isStreak]);
 
   const handleNext = () => {
-    const isLast = state.currentRoundIndex + 1 >= state.roundsCount;
+    if (streakBusted) {
+      dispatch({ type: 'STREAK_FAIL' });
+      navigate('/summary');
+      return;
+    }
+    const isLast = !isStreak && state.currentRoundIndex + 1 >= state.roundsCount;
     dispatch({ type: 'NEXT_ROUND' });
     if (isLast) {
       navigate('/summary');
     }
-    // phase reset happens via useEffect on currentRoundIndex change
   };
 
   const roundNum = state.currentRoundIndex + 1;
+  const streakCount = state.rounds.filter((r) => !r.timedOut && r.distanceKm !== null && r.distanceKm <= STREAK_THRESHOLD[state.difficulty]).length;
+
+  // For Daily mode, determine the effective difficulty for imagery
+  const effectiveDifficulty = isDaily ? 'Medium' as const : state.difficulty;
 
   return (
     <div className="game-round">
@@ -125,26 +211,48 @@ export default function GameRound() {
         {/* Left: imagery or city name */}
         <div className="map-pane">
           <div className="map-label" aria-hidden="true">
-            {isCityHunt ? '🏙 Welche Stadt?' : '📷 Satellitenansicht'}
+            {isCityHunt
+              ? '🏙 Welche Stadt?'
+              : isFlagMode
+              ? '🏴 Welches Land?'
+              : isSilhouetteMode
+              ? '🗺 Welches Land?'
+              : isZoomOut
+              ? '🔭 Zoom Out'
+              : '📷 Satellitenansicht'}
           </div>
           {phase === 'loading' && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}>
-              {isCityHunt ? 'Lade Stadt …' : 'Lade Standort …'}
+              {isCountryMode ? 'Lade Land …' : isCityHunt ? 'Lade Stadt …' : 'Lade Standort …'}
             </div>
           )}
           {phase === 'error' && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--danger)' }}>
-              {isCityHunt ? '⚠️ Stadt konnte nicht geladen werden.' : '⚠️ Standort konnte nicht geladen werden.'}
+              ⚠️ Daten konnten nicht geladen werden.
             </div>
           )}
           {target && (phase === 'playing' || phase === 'result') && (
-            isCityHunt ? (
+            isFlagMode ? (
+              <FlagDisplay countryCode={countryCode ?? ''} continent={continent} difficulty={effectiveDifficulty} />
+            ) : isSilhouetteMode ? (
+              <SilhouetteDisplay countryCode={countryCode ?? ''} continent={continent} difficulty={effectiveDifficulty} />
+            ) : isCityHunt ? (
               <CityNameDisplay city={cityName ?? ''} country={countryName} />
+            ) : isZoomOut ? (
+              <ZoomImageryMap
+                latitude={target.latitude}
+                longitude={target.longitude}
+                startZoom={ZOOM_OUT_START[effectiveDifficulty]}
+                endZoom={ZOOM_OUT_END[effectiveDifficulty]}
+                durationSec={ZOOM_DURATION[effectiveDifficulty]}
+                running={phase === 'playing'}
+                onProgress={handleZoomProgress}
+              />
             ) : (
               <ImageryMap
                 latitude={target.latitude}
                 longitude={target.longitude}
-                difficulty={state.difficulty}
+                difficulty={effectiveDifficulty}
               />
             )
           )}
@@ -159,29 +267,66 @@ export default function GameRound() {
             interactive={phase === 'playing'}
             showResult={phase === 'result'}
             onGuess={handleGuess}
+            hideLabels={isCityHunt || isCountryMode}
+            distKm={distKm}
           />
 
-          {/* Result overlay */}
-          {phase === 'result' && (
+          {/* Result overlay — toggleable for mobile */}
+          {phase === 'result' && overlayVisible && (
             <div className="result-overlay">
-              {guess ? (
+              <button
+                className="result-overlay-toggle"
+                onClick={() => setOverlayVisible(false)}
+                type="button"
+                aria-label="Ergebnis ausblenden"
+              >
+                ✕
+              </button>
+              {isCountryMode && countryName && (
+                <div className="result-country">{countryName}</div>
+              )}
+              {streakBusted ? (
+                <>
+                  <h3 style={{ color: 'var(--danger)' }}>Game Over!</h3>
+                  <div className="result-distance">{formatDistance(distKm ?? 0)}</div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                    Threshold: {STREAK_THRESHOLD[state.difficulty]} km
+                  </div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--accent-glow)', marginTop: '0.5rem' }}>
+                    🔥 Streak: {streakCount}
+                  </div>
+                </>
+              ) : guess ? (
                 <>
                   <h3>Deine Distanz</h3>
                   <div className="result-distance">{formatDistance(distKm ?? 0)}</div>
                   <div className="result-score">+{formatScore(roundScore)} Punkte</div>
-                  {isZen && (
-                    <div className="result-time-bonus" style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                      {formatTime(elapsedSec)} · +{formatScore(timeBonus)} Zeitbonus
-                    </div>
-                  )}
+                  <div className="result-time-bonus" style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                    {formatTime(elapsedSec)}{isZoomOut ? ` · +${formatScore(timeBonus)} Zoom-Bonus` : isZen ? ` · +${formatScore(timeBonus)} Zeitbonus` : ''}
+                  </div>
                 </>
               ) : (
                 <>
-                  <h3>Zeit abgelaufen!</h3>
+                  <h3>{isStreak ? 'Game Over!' : 'Zeit abgelaufen!'}</h3>
                   <div className="result-timeout">⏱ Kein Tipp — 0 Punkte</div>
+                  {isStreak && (
+                    <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--accent-glow)', marginTop: '0.5rem' }}>
+                      🔥 Streak: {streakCount}
+                    </div>
+                  )}
                 </>
               )}
             </div>
+          )}
+          {phase === 'result' && !overlayVisible && (
+            <button
+              className="result-overlay-show"
+              onClick={() => setOverlayVisible(true)}
+              type="button"
+              aria-label="Ergebnis einblenden"
+            >
+              📊
+            </button>
           )}
         </div>
       </div>
@@ -189,10 +334,23 @@ export default function GameRound() {
       {/* ── Footer ── */}
       <footer className="game-footer">
         <div className="game-info">
-          <div className="game-info-item">
-            <span>Runde</span>
-            <span>{roundNum} / {state.roundsCount}</span>
-          </div>
+          {isStreak ? (
+            <>
+              <div className="game-info-item">
+                <span>Streak</span>
+                <span>🔥 {streakCount}</span>
+              </div>
+              <div className="game-info-item">
+                <span>Runde</span>
+                <span>{roundNum}</span>
+              </div>
+            </>
+          ) : (
+            <div className="game-info-item">
+              <span>Runde</span>
+              <span>{roundNum} / {state.roundsCount}</span>
+            </div>
+          )}
           <div className="game-info-item">
             <span>Punkte</span>
             <span>{formatScore(totalScore)}</span>
@@ -205,13 +363,20 @@ export default function GameRound() {
             <span>Schwierigkeit</span>
             <span>{state.difficulty}</span>
           </div>
+          {isStreak && (
+            <div className="game-info-item">
+              <span>Max. km</span>
+              <span>{STREAK_THRESHOLD[state.difficulty]}</span>
+            </div>
+          )}
         </div>
 
-        {phase === 'playing' && target && !isZen && (
+        {phase === 'playing' && target && showTimer && (
           <CountdownTimer
-            difficulty={state.difficulty}
+            difficulty={isDaily ? 'Medium' : state.difficulty}
             running={phase === 'playing'}
             onTimeout={handleTimeout}
+            durationOverride={isSpeedRound ? SPEED_ROUND_TIMER : undefined}
           />
         )}
 
@@ -228,14 +393,18 @@ export default function GameRound() {
               Gesamt: <strong>{formatScore(totalScore)}</strong>
             </span>
             <button className="btn btn-primary" onClick={handleNext} type="button" autoFocus>
-              {roundNum >= state.roundsCount ? '🏁 Ergebnis anzeigen' : '▶ Nächste Runde'}
+              {streakBusted
+                ? '🏁 Ergebnis anzeigen'
+                : !isStreak && roundNum >= state.roundsCount
+                ? '🏁 Ergebnis anzeigen'
+                : '▶ Nächste Runde'}
             </button>
           </div>
         )}
 
         <div className="attribution">
           Karte: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap</a>
-          {!isCityHunt && (
+          {!isCityHunt && !isCountryMode && (
             <>&nbsp;|&nbsp;Satellit: <a href="https://www.esri.com" target="_blank" rel="noopener noreferrer">© Esri</a></>
           )}
         </div>

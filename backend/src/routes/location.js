@@ -7,11 +7,24 @@ const router = express.Router();
 
 const LOCATIONS_PATH = path.join(__dirname, '../../data/locations.json');
 const CITIES_PATH = path.join(__dirname, '../../data/cities.json');
+const COUNTRIES_PATH = path.join(__dirname, '../../data/countries.json');
 const FALLBACK_LOCATION = { latitude: 52.52, longitude: 13.405 }; // Berlin
 const FALLBACK_CITY = { city: 'Berlin', country: 'Deutschland', latitude: 52.52, longitude: 13.405, difficulty: 'easy' };
+const FALLBACK_COUNTRY = { country: 'Deutschland', countryCode: 'de', latitude: 51.1657, longitude: 10.4515, difficulty: 'easy', continent: 'Europa' };
 
 let locations = null;
 let cities = null;
+let countries = null;
+
+function parseExclude(raw) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
 
 function loadLocations() {
   if (locations !== null) return locations;
@@ -44,8 +57,14 @@ function loadLocations() {
 // GET /api/location
 router.get('/location', (req, res) => {
   const locs = loadLocations();
-  const idx = Math.floor(Math.random() * locs.length);
-  const loc = locs[idx];
+  const exclude = new Set(parseExclude(req.query.exclude));
+  let pool = exclude.size > 0
+    ? locs.filter((l) => !exclude.has(`${l.latitude},${l.longitude}`))
+    : locs;
+  if (pool.length === 0) pool = locs;
+
+  const idx = Math.floor(Math.random() * pool.length);
+  const loc = pool[idx];
   res.json({ latitude: loc.latitude, longitude: loc.longitude });
 });
 
@@ -90,8 +109,14 @@ router.get('/city', (req, res) => {
   const pool = allCities.filter((c) => allowedDiffs.includes(c.difficulty));
   const selected = pool.length > 0 ? pool : allCities;
 
-  const idx = Math.floor(Math.random() * selected.length);
-  const city = selected[idx];
+  const exclude = new Set(parseExclude(req.query.exclude));
+  let filtered = exclude.size > 0
+    ? selected.filter((c) => !exclude.has(c.city))
+    : selected;
+  if (filtered.length === 0) filtered = selected;
+
+  const idx = Math.floor(Math.random() * filtered.length);
+  const city = filtered[idx];
 
   const result = {
     city: city.city,
@@ -105,6 +130,216 @@ router.get('/city', (req, res) => {
   }
 
   res.json(result);
+});
+
+// ── Country data loading (Flag Mode & Silhouette Mode) ──────────────────────
+
+function loadCountries() {
+  if (countries !== null) return countries;
+  try {
+    const raw = fs.readFileSync(COUNTRIES_PATH, 'utf-8');
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      console.warn('countries.json is empty or invalid. Using fallback.');
+      countries = [FALLBACK_COUNTRY];
+    } else {
+      const valid = parsed.filter((c, i) => {
+        if (!c.country || typeof c.country !== 'string' || !c.countryCode || !validateCoordinates(c)) {
+          console.warn(`Skipping invalid country at index ${i}:`, JSON.stringify(c));
+          return false;
+        }
+        return true;
+      });
+      countries = valid.length > 0 ? valid : [FALLBACK_COUNTRY];
+    }
+  } catch (err) {
+    console.error('Failed to load countries.json:', err.message, '- Using fallback.');
+    countries = [FALLBACK_COUNTRY];
+  }
+  return countries;
+}
+
+// GET /api/country?difficulty=Easy|Medium|Hard (used by both FlagMode and SilhouetteMode)
+router.get('/country', (req, res) => {
+  const allCountries = loadCountries();
+  const difficulty = req.query.difficulty;
+  const allowedDiffs = DIFFICULTY_POOLS[difficulty] || DIFFICULTY_POOLS.Hard;
+  const pool = allCountries.filter((c) => allowedDiffs.includes(c.difficulty));
+  const selected = pool.length > 0 ? pool : allCountries;
+
+  const exclude = new Set(parseExclude(req.query.exclude));
+  let filtered = exclude.size > 0
+    ? selected.filter((c) => !exclude.has(c.countryCode))
+    : selected;
+  if (filtered.length === 0) filtered = selected;
+
+  const idx = Math.floor(Math.random() * filtered.length);
+  const country = filtered[idx];
+
+  const result = {
+    country: country.country,
+    countryCode: country.countryCode,
+    latitude: country.latitude,
+    longitude: country.longitude,
+  };
+
+  // Include continent hint on Easy difficulty
+  if (difficulty === 'Easy' && country.continent) {
+    result.continent = country.continent;
+  }
+
+  res.json(result);
+});
+
+// ── Puzzle Mode ──────────────────────────────────────────────────────────────
+
+const PUZZLE_REGIONS = {
+  Europa: ['Europa', 'Europa/Asien'],
+  Asien: ['Asien', 'Europa/Asien'],
+  Afrika: ['Afrika'],
+  Amerika: ['Nordamerika', 'Südamerika'],
+  Ozeanien: ['Ozeanien'],
+};
+
+const PUZZLE_DATA_DIR = path.join(__dirname, '../../data/puzzle');
+
+const puzzleGeoCache = {};
+
+function loadPuzzleGeo(region) {
+  const key = region.toLowerCase();
+  if (puzzleGeoCache[key]) return puzzleGeoCache[key];
+  try {
+    const filePath = path.join(PUZZLE_DATA_DIR, `${key}.json`);
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    puzzleGeoCache[key] = JSON.parse(raw);
+    return puzzleGeoCache[key];
+  } catch {
+    return null;
+  }
+}
+
+// GET /api/puzzle/countries?continent=Europa&difficulty=Easy
+router.get('/puzzle/countries', (req, res) => {
+  const { continent, difficulty } = req.query;
+  if (!continent || !PUZZLE_REGIONS[continent]) {
+    return res.status(400).json({ error: `Invalid continent. Valid: ${Object.keys(PUZZLE_REGIONS).join(', ')}` });
+  }
+
+  const allCountries = loadCountries();
+  const allowedContinents = PUZZLE_REGIONS[continent];
+  const allowedDiffs = DIFFICULTY_POOLS[difficulty] || DIFFICULTY_POOLS.Hard;
+
+  const pool = allCountries.filter(
+    (c) => allowedContinents.includes(c.continent) && allowedDiffs.includes(c.difficulty)
+  );
+
+  // Shuffle the pool
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+
+  res.json({
+    region: continent,
+    countries: shuffled.map((c) => ({
+      country: c.country,
+      countryCode: c.countryCode,
+      latitude: c.latitude,
+      longitude: c.longitude,
+    })),
+  });
+});
+
+// GET /api/puzzle/geojson?continent=Europa
+router.get('/puzzle/geojson', (req, res) => {
+  const { continent } = req.query;
+  if (!continent || !PUZZLE_REGIONS[continent]) {
+    return res.status(400).json({ error: `Invalid continent. Valid: ${Object.keys(PUZZLE_REGIONS).join(', ')}` });
+  }
+
+  const geoData = loadPuzzleGeo(continent);
+  if (!geoData) {
+    return res.status(404).json({ error: 'GeoJSON data not found for this region.' });
+  }
+
+  res.json(geoData);
+});
+
+// ── Seeded PRNG for Daily Challenge ─────────────────────────────────────────
+
+function mulberry32(seed) {
+  return function () {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function dateToSeed(dateStr) {
+  return parseInt(dateStr.replace(/-/g, ''), 10);
+}
+
+// Deterministically pick `count` items from an array using a seeded PRNG
+function seededPick(arr, seed, count) {
+  const rng = mulberry32(seed);
+  const copy = [...arr];
+  const result = [];
+  for (let i = 0; i < count && copy.length > 0; i++) {
+    const idx = Math.floor(rng() * copy.length);
+    result.push(copy.splice(idx, 1)[0]);
+  }
+  return result;
+}
+
+// GET /api/daily?date=YYYY-MM-DD&round=0..4&category=SkyView|CityHunt
+router.get('/daily', (req, res) => {
+  const { date, round, category } = req.query;
+
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return res.status(400).json({ error: 'date must be in YYYY-MM-DD format.' });
+  }
+
+  const roundIdx = parseInt(round, 10);
+  if (isNaN(roundIdx) || roundIdx < 0 || roundIdx > 4) {
+    return res.status(400).json({ error: 'round must be 0-4.' });
+  }
+
+  const CATEGORY_SEED_OFFSET = { SkyView: 0, CityHunt: 99999, FlagMode: 199999, SilhouetteMode: 299999, ZoomOut: 499999, PuzzleMode: 599999 };
+  const seed = dateToSeed(date) + (CATEGORY_SEED_OFFSET[category] || 0);
+
+  if (category === 'FlagMode' || category === 'SilhouetteMode') {
+    const allCountries = loadCountries();
+    const pool = allCountries.filter((c) => ['easy', 'medium'].includes(c.difficulty));
+    const selected = pool.length > 0 ? pool : allCountries;
+    const dailyCountries = seededPick(selected, seed, 5);
+    const country = dailyCountries[roundIdx];
+    if (!country) return res.status(404).json({ error: 'No country available.' });
+    res.json({
+      country: country.country,
+      countryCode: country.countryCode,
+      latitude: country.latitude,
+      longitude: country.longitude,
+      continent: country.continent || undefined,
+    });
+  } else if (category === 'CityHunt') {
+    const allCities = loadCities();
+    const pool = allCities.filter((c) => ['easy', 'medium'].includes(c.difficulty));
+    const selected = pool.length > 0 ? pool : allCities;
+    const dailyCities = seededPick(selected, seed, 5);
+    const city = dailyCities[roundIdx];
+    if (!city) return res.status(404).json({ error: 'No city available.' });
+    res.json({
+      city: city.city,
+      latitude: city.latitude,
+      longitude: city.longitude,
+      country: city.country || undefined,
+    });
+  } else {
+    const locs = loadLocations();
+    const dailyLocs = seededPick(locs, seed, 5);
+    const loc = dailyLocs[roundIdx];
+    if (!loc) return res.status(404).json({ error: 'No location available.' });
+    res.json({ latitude: loc.latitude, longitude: loc.longitude });
+  }
 });
 
 module.exports = router;

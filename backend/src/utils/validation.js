@@ -1,7 +1,7 @@
 const VALID_DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
 const VALID_ROUNDS = [3, 5, 7];
-const VALID_GAME_MODES = ['Classic', 'Zen'];
-const VALID_GAME_CATEGORIES = ['SkyView', 'CityHunt'];
+const VALID_GAME_MODES = ['Classic', 'Zen', 'Daily', 'Streak', 'SpeedRound'];
+const VALID_GAME_CATEGORIES = ['SkyView', 'CityHunt', 'FlagMode', 'SilhouetteMode', 'ZoomOut', 'PuzzleMode'];
 const NAME_REGEX = /^[a-zA-Z0-9\-_]+$/;
 
 /**
@@ -45,7 +45,12 @@ function validateScorePayload(body) {
     errors.push(`difficulty must be one of: ${VALID_DIFFICULTIES.join(', ')}.`);
   }
 
-  if (!VALID_ROUNDS.includes(body.roundsCount)) {
+  const flexibleRoundsMode = ['Streak', 'Daily', 'SpeedRound'].includes(body.gameMode) || body.gameCategory === 'PuzzleMode';
+  if (flexibleRoundsMode) {
+    if (typeof body.roundsCount !== 'number' || !Number.isInteger(body.roundsCount) || body.roundsCount < 1) {
+      errors.push('roundsCount must be a positive integer.');
+    }
+  } else if (!VALID_ROUNDS.includes(body.roundsCount)) {
     errors.push(`roundsCount must be one of: ${VALID_ROUNDS.join(', ')}.`);
   }
 

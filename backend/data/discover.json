@@ -1,18 +1,52 @@
 {
   "changelog": [
     {
+      "version": "1.2.1",
+      "date": "2026-03-10",
+      "title": "Scoring-Balance & Zeitmessung",
+      "entries": [
+        "Zeitmessung jetzt auch im Classic-Modus sichtbar",
+        "Bestenliste: Bei Punktgleichstand entscheidet die schnellere Zeit",
+        "Bestenliste: Spaltenreihenfolge optimiert (Ø Punkte vor Score)",
+        "Zen-Modus Scoring auf 5.000er-Skala normalisiert (faire Vergleichbarkeit)",
+        "Spielergebnis zeigt Gesamtzeit und Rundenzeiten für alle Modi"
+      ]
+    },
+    {
+      "version": "1.2.0",
+      "date": "2026-03-10",
+      "title": "CityHunt Modus",
+      "entries": [
+        "Neuer Spielmodus CityHunt: Finde Städte auf der Weltkarte anhand ihres Namens",
+        "Über 200 Städte weltweit mit drei Schwierigkeitsgraden",
+        "Eigene Bestenliste für den CityHunt-Modus",
+        "Kategorie-Auswahl auf dem Startbildschirm (SkyView / CityHunt)",
+        "Schwierigkeitsgrade im CityHunt: Easy zeigt Land, Hard nur den Stadtnamen"
+      ]
+    },
+    {
+      "version": "1.1.0",
+      "date": "2026-03-06",
+      "title": "Zen Modus",
+      "entries": [
+        "Neuer Zen-Modus: Spiele ohne Zeitdruck",
+        "Zeitbonus-System: Je schneller, desto mehr Punkte",
+        "Bestenliste zeigt Gesamtzeit im Zen-Modus an"
+      ]
+    },
+    {
       "version": "1.0.0",
       "date": "2026-03-04",
       "title": "Initial Release",
       "entries": [
-        "Interactive world map guessing with Leaflet",
-        "Three difficulty levels: Easy, Medium, Hard",
-        "Configurable round counts: 3, 5 or 7 rounds",
-        "Score calculation based on Haversine distance",
-        "Persistent leaderboard with SQLite",
-        "Responsive layout for desktop and mobile",
-        "Tile error fallback handling",
-        "Round result reveal with distance line"
+        "Interaktives Weltkarten-Raten mit Leaflet",
+        "Drei Schwierigkeitsgrade: Leicht, Mittel, Schwer",
+        "Konfigurierbare Rundenzahl: 3, 5 oder 7 Runden",
+        "Punkteberechnung basierend auf Haversine-Distanz",
+        "Persistente Bestenliste mit SQLite",
+        "Responsives Layout für Desktop und Mobil",
+        "Tile-Fehler-Fallback-Behandlung",
+        "Ergebnis-Anzeige mit Distanzlinie"
       ]
     }
   ],

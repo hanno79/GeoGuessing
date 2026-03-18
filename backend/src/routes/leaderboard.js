@@ -39,20 +39,20 @@ setInterval(() => {
   }
 }, 5 * 60_000).unref();
 
-const ALLOWED_SORT_COLUMNS = ['totalScore', 'avgDistanceKm', 'timestamp', 'name', 'difficulty', 'roundsCount', 'gameMode', 'gameCategory', 'totalTimeTakenSeconds'];
+const ALLOWED_SORT_COLUMNS = ['totalScore', 'scorePerRound', 'avgDistanceKm', 'timestamp', 'name', 'difficulty', 'roundsCount', 'gameMode', 'gameCategory', 'totalTimeTakenSeconds'];
 const ALLOWED_ORDERS = ['asc', 'desc'];
 
 // GET /api/leaderboard
 router.get('/leaderboard', (req, res) => {
   try {
     const db = getDb();
-    const { difficulty, roundsCount, gameMode, gameCategory, sort = 'totalScore', order = 'desc', limit = 50 } = req.query;
+    const { difficulty, roundsCount, gameMode, gameCategory, sort = 'scorePerRound', order = 'desc', limit = 50 } = req.query;
 
-    const sortCol = ALLOWED_SORT_COLUMNS.includes(sort) ? sort : 'totalScore';
+    const sortCol = ALLOWED_SORT_COLUMNS.includes(sort) ? sort : 'scorePerRound';
     const sortOrder = ALLOWED_ORDERS.includes(order?.toLowerCase()) ? order.toUpperCase() : 'DESC';
     const limitNum = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200);
 
-    let query = 'SELECT * FROM leaderboard WHERE 1=1';
+    let query = 'SELECT *, ROUND(CAST(totalScore AS REAL) / roundsCount, 1) AS scorePerRound FROM leaderboard WHERE 1=1';
     const params = [];
 
     if (difficulty) {
@@ -72,7 +72,14 @@ router.get('/leaderboard', (req, res) => {
       params.push(gameCategory);
     }
 
+    const { dailyDate } = req.query;
+    if (dailyDate) {
+      query += ' AND dailyDate = ?';
+      params.push(dailyDate);
+    }
+
     query += ` ORDER BY ${sortCol} ${sortOrder}`;
+    if (sortCol !== 'totalTimeTakenSeconds') query += ', totalTimeTakenSeconds ASC';
     if (sortCol !== 'avgDistanceKm') query += ', avgDistanceKm ASC';
     if (sortCol !== 'timestamp') query += ', timestamp ASC';
     query += ' LIMIT ?';
@@ -96,8 +103,18 @@ router.post('/score', scoreRateLimit, (req, res) => {
       return res.status(400).json({ error: 'Ungültige Daten.', details: validation.errors });
     }
 
-    const { totalScore, difficulty, roundsCount, avgDistanceKm, gameMode, gameCategory, totalTimeTakenSeconds } = req.body;
+    const { totalScore, difficulty, roundsCount, avgDistanceKm, gameMode, gameCategory, totalTimeTakenSeconds, dailyDate } = req.body;
     const name = validation.name;
+
+    // Daily Challenge: only one attempt per player per day per category
+    if (gameMode === 'Daily' && dailyDate) {
+      const dailyExisting = db
+        .prepare('SELECT id FROM leaderboard WHERE name = ? AND gameMode = ? AND dailyDate = ? AND gameCategory = ?')
+        .get(name, 'Daily', dailyDate, gameCategory);
+      if (dailyExisting) {
+        return res.status(409).json({ error: 'Du hast die heutige Challenge bereits gespielt.' });
+      }
+    }
 
     // Check for duplicate entry
     const existing = db
@@ -111,14 +128,35 @@ router.post('/score', scoreRateLimit, (req, res) => {
     }
 
     const stmt = db.prepare(
-      'INSERT INTO leaderboard (name, totalScore, difficulty, roundsCount, avgDistanceKm, gameMode, gameCategory, totalTimeTakenSeconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO leaderboard (name, totalScore, difficulty, roundsCount, avgDistanceKm, gameMode, gameCategory, totalTimeTakenSeconds, dailyDate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
     );
-    const result = stmt.run(name, totalScore, difficulty, roundsCount, avgDistanceKm ?? null, gameMode, gameCategory, totalTimeTakenSeconds ?? null);
+    const result = stmt.run(name, totalScore, difficulty, roundsCount, avgDistanceKm ?? null, gameMode, gameCategory, totalTimeTakenSeconds ?? null, dailyDate ?? null);
 
     const newEntry = db.prepare('SELECT * FROM leaderboard WHERE id = ?').get(result.lastInsertRowid);
     res.status(201).json(newEntry);
   } catch (err) {
     console.error('POST /api/score error:', err.message);
+    res.status(500).json({ error: 'Datenbankfehler.' });
+  }
+});
+
+// GET /api/daily/check — check if a player already played today's daily
+router.get('/daily/check', (req, res) => {
+  try {
+    const db = getDb();
+    const { name, date, category } = req.query;
+
+    if (!name || !date) {
+      return res.status(400).json({ error: 'name and date are required.' });
+    }
+
+    const existing = db
+      .prepare('SELECT id FROM leaderboard WHERE name = ? AND gameMode = ? AND dailyDate = ? AND gameCategory = ?')
+      .get(name, 'Daily', date, category || 'SkyView');
+
+    res.json({ played: !!existing });
+  } catch (err) {
+    console.error('GET /api/daily/check error:', err.message);
     res.status(500).json({ error: 'Datenbankfehler.' });
   }
 });
