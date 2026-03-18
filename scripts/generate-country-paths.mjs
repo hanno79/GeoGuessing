@@ -2,7 +2,7 @@
  * Generate accurate SVG country silhouette paths from Natural Earth TopoJSON data.
  *
  * Uses world-atlas npm package (Natural Earth 50m resolution).
- * Projects GeoJSON coordinates to SVG paths using equirectangular projection,
+ * Projects GeoJSON coordinates to SVG paths using Web Mercator projection,
  * then normalizes each country to fit a 0-100 viewBox.
  *
  * Usage: node scripts/generate-country-paths.mjs
@@ -129,6 +129,18 @@ function isNearMainland(ringBbox, mainBbox, maxExpansion = 0.5) {
 }
 
 /**
+ * Convert latitude to Web Mercator Y value.
+ * Clamps latitude to ±85.051129° to avoid infinity at the poles
+ * (same limit Leaflet/OpenStreetMap uses).
+ */
+function mercatorY(lat) {
+  const MAX_LAT = 85.051129;
+  const clampedLat = Math.max(-MAX_LAT, Math.min(MAX_LAT, lat));
+  const latRad = (clampedLat * Math.PI) / 180;
+  return Math.log(Math.tan(Math.PI / 4 + latRad / 2));
+}
+
+/**
  * Convert GeoJSON geometry to an SVG path string, normalized to 0-100 viewBox.
  */
 function geometryToSvgPath(geometry, epsilon = 0.5) {
@@ -138,12 +150,12 @@ function geometryToSvgPath(geometry, epsilon = 0.5) {
   function collectRings(geom) {
     if (geom.type === 'Polygon') {
       // Only take outer ring (index 0); skip holes (indices 1+)
-      const projected = geom.coordinates[0].map(([lon, lat]) => [lon, -lat]);
+      const projected = geom.coordinates[0].map(([lon, lat]) => [lon, -mercatorY(lat)]);
       allRings.push(projected);
     } else if (geom.type === 'MultiPolygon') {
       for (const polygon of geom.coordinates) {
         // Only outer ring of each polygon
-        const projected = polygon[0].map(([lon, lat]) => [lon, -lat]);
+        const projected = polygon[0].map(([lon, lat]) => [lon, -mercatorY(lat)]);
         allRings.push(projected);
       }
     }
