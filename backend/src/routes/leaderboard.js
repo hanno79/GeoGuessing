@@ -4,6 +4,41 @@ const { validateScorePayload } = require('../utils/validation');
 
 const router = express.Router();
 
+// Simple in-memory rate limiter for score submissions (per IP).
+// Allows RATE_LIMIT_MAX requests per RATE_LIMIT_WINDOW_MS window.
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX = 10;
+const rateLimitMap = new Map(); // ip -> { count, resetTime }
+
+function scoreRateLimit(req, res, next) {
+  const ip = req.ip;
+  const now = Date.now();
+  let entry = rateLimitMap.get(ip);
+
+  if (!entry || now > entry.resetTime) {
+    entry = { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS };
+    rateLimitMap.set(ip, entry);
+    return next();
+  }
+
+  entry.count++;
+  if (entry.count > RATE_LIMIT_MAX) {
+    const retryAfter = Math.ceil((entry.resetTime - now) / 1000);
+    res.set('Retry-After', String(retryAfter));
+    return res.status(429).json({ error: 'Zu viele Anfragen. Bitte warte einen Moment.' });
+  }
+
+  return next();
+}
+
+// Periodically clean up expired entries (every 5 minutes)
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of rateLimitMap) {
+    if (now > entry.resetTime) rateLimitMap.delete(ip);
+  }
+}, 5 * 60_000).unref();
+
 const ALLOWED_SORT_COLUMNS = ['totalScore', 'avgDistanceKm', 'timestamp', 'name', 'difficulty', 'roundsCount', 'gameMode', 'gameCategory', 'totalTimeTakenSeconds'];
 const ALLOWED_ORDERS = ['asc', 'desc'];
 
@@ -52,7 +87,7 @@ router.get('/leaderboard', (req, res) => {
 });
 
 // POST /api/score
-router.post('/score', (req, res) => {
+router.post('/score', scoreRateLimit, (req, res) => {
   try {
     const db = getDb();
     const validation = validateScorePayload(req.body);
