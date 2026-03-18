@@ -90,7 +90,7 @@ export default function Home() {
     const today = todayDateStr();
     for (const cat of ['SkyView', 'CityHunt', 'FlagMode', 'SilhouetteMode', 'ZoomOut'] as GameCategory[]) {
       fetch(`/api/leaderboard?gameMode=Daily&dailyDate=${today}&gameCategory=${cat}&sort=totalScore&order=desc&limit=1`)
-        .then((r) => r.json())
+        .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
         .then((data: LeaderboardEntry[]) => {
           setDailyLeaders((prev) => ({ ...prev, [cat]: data[0] ?? null }));
         })

@@ -233,8 +233,12 @@ router.get('/puzzle/countries', (req, res) => {
     (c) => allowedContinents.includes(c.continent) && allowedDiffs.includes(c.difficulty)
   );
 
-  // Shuffle the pool
-  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+  // Fisher-Yates shuffle for uniform randomness
+  const shuffled = [...pool];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
 
   res.json({
     region: continent,

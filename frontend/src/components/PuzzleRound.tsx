@@ -56,8 +56,8 @@ export default function PuzzleRound() {
     let cancelled = false;
 
     Promise.all([
-      fetch(`/api/puzzle/countries?continent=${region}&difficulty=${state.difficulty}`).then((r) => r.json()),
-      fetch(`/api/puzzle/geojson?continent=${region}`).then((r) => r.json()),
+      fetch(`/api/puzzle/countries?continent=${region}&difficulty=${state.difficulty}`).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
+      fetch(`/api/puzzle/geojson?continent=${region}`).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
     ])
       .then(([countriesData, geoJsonData]) => {
         if (cancelled) return;

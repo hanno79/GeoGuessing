@@ -28,10 +28,6 @@ export default function CountdownTimer({ difficulty, running, onTimeout, duratio
       setRemaining((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
-          if (!timeoutCalled.current) {
-            timeoutCalled.current = true;
-            onTimeout();
-          }
           return 0;
         }
         const next = prev - 1;
@@ -41,7 +37,15 @@ export default function CountdownTimer({ difficulty, running, onTimeout, duratio
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [running, onTimeout]);
+  }, [running]);
+
+  // Trigger timeout callback outside of state updater
+  useEffect(() => {
+    if (remaining === 0 && !timeoutCalled.current) {
+      timeoutCalled.current = true;
+      onTimeout();
+    }
+  }, [remaining, onTimeout]);
 
   const pct = Math.max(0, (remaining / total) * 100);
   const valueClass = remaining <= 10 ? 'danger' : remaining <= 20 ? 'warning' : '';

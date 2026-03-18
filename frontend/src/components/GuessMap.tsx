@@ -133,6 +133,7 @@ function AnimatedPolyline({
 
   useEffect(() => {
     done.current = false;
+    let rafId: number;
 
     const line = L.polyline([from, from], {
       color: '#388bfd',
@@ -160,15 +161,16 @@ function AnimatedPolyline({
       line.setLatLngs([from, [lat, lng]]);
       vehicleMarker.setLatLng([lat, lng]);
       if (t < 1) {
-        requestAnimationFrame(animate);
+        rafId = requestAnimationFrame(animate);
       } else if (!done.current) {
         done.current = true;
         completeRef.current?.();
       }
     }
-    requestAnimationFrame(animate);
+    rafId = requestAnimationFrame(animate);
 
     return () => {
+      cancelAnimationFrame(rafId);
       map.removeLayer(line);
       map.removeLayer(vehicleMarker);
     };

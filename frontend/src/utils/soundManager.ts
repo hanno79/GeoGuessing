@@ -98,12 +98,20 @@ const sounds: Record<SoundType, () => void> = {
 };
 
 export function isSoundEnabled(): boolean {
-  return localStorage.getItem(STORAGE_KEY) === 'true';
+  try {
+    return localStorage.getItem(STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
 }
 
 export function toggleSound(): boolean {
   const next = !isSoundEnabled();
-  localStorage.setItem(STORAGE_KEY, String(next));
+  try {
+    localStorage.setItem(STORAGE_KEY, String(next));
+  } catch {
+    // localStorage unavailable (private browsing, iframe sandbox, etc.)
+  }
   if (next) resumeCtx();
   return next;
 }

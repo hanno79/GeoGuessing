@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
 import type { LatLng } from '../types';
-import { ZEN_TIME_BONUS_WINDOW, STREAK_THRESHOLD, DIFFICULTY_TIMER, ZOOM_OUT_START, ZOOM_OUT_END, ZOOM_DURATION, SPEED_ROUND_TIMER } from '../types';
+import { ZEN_TIME_BONUS_WINDOW, STREAK_THRESHOLD, ZOOM_OUT_START, ZOOM_OUT_END, ZOOM_DURATION, SPEED_ROUND_TIMER } from '../types';
 import { haversineDistance } from '../utils/haversine';
 import { calculateScore, calculateZenDistanceScore, calculateTimeBonus, calculateZoomBonus, formatDistance, formatScore, formatTime } from '../utils/scoreCalculator';
 import CountdownTimer from './CountdownTimer';
@@ -103,7 +103,7 @@ export default function GameRound() {
     }
 
     fetch(url)
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then((data) => {
         if (!cancelled) {
           setTarget({ latitude: data.latitude, longitude: data.longitude });

@@ -58,12 +58,14 @@ function initDatabase() {
       "SELECT name FROM _migrations WHERE name = 'normalize_zen_scores_v1'"
     ).get();
     if (!zenMigration) {
-      db.exec(`
-        UPDATE leaderboard
-        SET totalScore = CAST(ROUND(totalScore * 5000.0 / 6000.0) AS INTEGER)
-        WHERE gameMode = 'Zen'
-      `);
-      db.prepare("INSERT INTO _migrations (name) VALUES (?)").run('normalize_zen_scores_v1');
+      db.transaction(() => {
+        db.exec(`
+          UPDATE leaderboard
+          SET totalScore = CAST(ROUND(totalScore * 5000.0 / 6000.0) AS INTEGER)
+          WHERE gameMode = 'Zen'
+        `);
+        db.prepare("INSERT INTO _migrations (name) VALUES (?)").run('normalize_zen_scores_v1');
+      })();
       console.log('Migration: normalized existing Zen scores to 5000-scale');
     }
 
@@ -73,17 +75,19 @@ function initDatabase() {
     ).get();
     if (!timeMigration) {
       // Classic timer limits: Easy=60s, Medium=45s, Hard=30s — use max time × roundsCount
-      db.exec(`
-        UPDATE leaderboard
-        SET totalTimeTakenSeconds = CASE difficulty
-          WHEN 'Easy' THEN 60.0 * roundsCount
-          WHEN 'Medium' THEN 45.0 * roundsCount
-          WHEN 'Hard' THEN 30.0 * roundsCount
-          ELSE 45.0 * roundsCount
-        END
-        WHERE totalTimeTakenSeconds IS NULL
-      `);
-      db.prepare("INSERT INTO _migrations (name) VALUES (?)").run('backfill_classic_time_v1');
+      db.transaction(() => {
+        db.exec(`
+          UPDATE leaderboard
+          SET totalTimeTakenSeconds = CASE difficulty
+            WHEN 'Easy' THEN 60.0 * roundsCount
+            WHEN 'Medium' THEN 45.0 * roundsCount
+            WHEN 'Hard' THEN 30.0 * roundsCount
+            ELSE 45.0 * roundsCount
+          END
+          WHERE totalTimeTakenSeconds IS NULL
+        `);
+        db.prepare("INSERT INTO _migrations (name) VALUES (?)").run('backfill_classic_time_v1');
+      })();
       console.log('Migration: backfilled Classic entries with default max time');
     }
 
